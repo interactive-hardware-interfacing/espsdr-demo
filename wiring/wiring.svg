@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12">
+  <style>
+    .board { fill: #eef1f4; stroke: #556; stroke-width: 1.5; }
+    .lbl { fill: #223; }
+    .mut { fill: #667; }
+    .wire { fill: none; stroke: #b5460f; stroke-width: 2; }
+    .ant { fill: none; stroke: #2f7d32; stroke-width: 2; }
+    .pad { fill: #cfd6dd; stroke: #889; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      .board { fill: #2a2f36; stroke: #9aa; }
+      .lbl { fill: #e8e8e4; } .mut { fill: #9a9a92; }
+      .pad { fill: #3a414a; stroke: #778; }
+    }
+  </style>
+
+  <!-- Laptop -->
+  <rect x="20" y="130" width="90" height="60" rx="6" class="board"/>
+  <text x="65" y="165" text-anchor="middle" class="lbl">Laptop</text>
+  <text x="65" y="180" text-anchor="middle" class="mut" font-size="10">Chrome / Edge</text>
+
+  <!-- USB cable laptop -> receiver -->
+  <path d="M110 160 H 170" class="wire"/>
+  <text x="140" y="152" text-anchor="middle" class="mut" font-size="10">USB‑C</text>
+
+  <!-- Receiver XIAO -->
+  <rect x="170" y="120" width="130" height="80" rx="6" class="board"/>
+  <text x="235" y="145" text-anchor="middle" class="lbl" font-weight="600">XIAO ESP32‑C3</text>
+  <text x="235" y="160" text-anchor="middle" class="mut" font-size="10">RECEIVER</text>
+  <text x="235" y="174" text-anchor="middle" class="mut" font-size="10">ESP‑SDR firmware</text>
+  <!-- u.FL + antenna -->
+  <circle cx="235" cy="120" r="4" class="pad"/>
+  <path d="M235 120 V 95 h 30" class="ant"/>
+  <text x="270" y="92" class="mut" font-size="10">antenna (u.FL)</text>
+
+  <!-- Jammer XIAO -->
+  <rect x="420" y="120" width="130" height="80" rx="6" class="board"/>
+  <text x="485" y="145" text-anchor="middle" class="lbl" font-weight="600">XIAO ESP32‑C3</text>
+  <text x="485" y="160" text-anchor="middle" class="mut" font-size="10">JAMMER (optional)</text>
+  <text x="485" y="174" text-anchor="middle" class="mut" font-size="10">CircuitPython</text>
+  <circle cx="485" cy="120" r="4" class="pad"/>
+  <path d="M485 120 V 95 h 30" class="ant"/>
+  <text x="520" y="92" class="mut" font-size="10">antenna (u.FL)</text>
+
+  <!-- Jammer power: its own USB to a bank / laptop -->
+  <rect x="560" y="210" width="70" height="40" rx="6" class="board"/>
+  <text x="595" y="234" text-anchor="middle" class="mut" font-size="10">USB power</text>
+  <path d="M485 200 V 230 H 560" class="wire"/>
+
+  <!-- GPIO4 control line receiver -> jammer (enable flag) -->
+  <path d="M300 185 H 420" class="wire" stroke-dasharray="5 4"/>
+  <text x="360" y="178" text-anchor="middle" class="mut" font-size="10">GPIO4 enable (optional)</text>
+  <circle cx="300" cy="185" r="3" class="pad"/>
+  <circle cx="420" cy="185" r="3" class="pad"/>
+
+  <!-- GND reference note -->
+  <text x="360" y="205" text-anchor="middle" class="mut" font-size="9">tie GND to GND if using the enable line</text>
+
+  <text x="20" y="285" class="mut" font-size="10">Receiver is the only board the browser talks to. The jammer is a separate node you move around the room;</text>
+  <text x="20" y="300" class="mut" font-size="10">the page's "Jammer" button drives the receiver's GPIO4, which the jammer reads to switch its carrier on and off.</text>
+</svg>

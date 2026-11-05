@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-SDR Demo</title>
+<meta name="description" content="Turn a XIAO ESP32-C3 into a 2.4 GHz software-defined radio in the browser: live spectrum, waterfall and raw I/Q scatter over Web Serial.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>ESP-SDR Demo</h1>
+  <p class="tag">A XIAO ESP32-C3 as a 2.4 GHz software-defined radio — spectrum, waterfall and raw I/Q, live in your browser.</p>
+  <nav>
+    <a href="#firmware">Firmware</a>
+    <a href="#about">About</a>
+    <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo">Source</a>
+    <a href="https://interactive-hardware-interfacing.github.io/">All tools</a>
+  </nav>
+</header>
+
+<div class="bar">
+  <button id="connect" class="primary">Connect board</button>
+  <button id="sim">Try without hardware</button>
+  <button id="disconnect">Disconnect</button>
+  <button id="jammer">Jammer: off</button>
+  <span id="status">Not connected</span>
+</div>
+
+<div class="note" id="nowebserial" hidden>
+  This browser can’t open USB serial ports. Use <strong>Chrome</strong> or <strong>Edge</strong> on a laptop or desktop to connect to a board. <strong>Try without hardware</strong> works anywhere.
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <h2>Power spectrum</h2>
+    <canvas id="spectrum" width="620" height="180"></canvas>
+    <canvas id="waterfall" width="620" height="120"></canvas>
+  </div>
+  <div class="panel">
+    <h2>I/Q scatter</h2>
+    <canvas id="iq" width="300" height="300"></canvas>
+  </div>
+</div>
+
+<div class="controls">
+  <div>
+    <label for="freq">Center frequency (MHz)</label>
+    <input type="number" id="freq" value="2442" min="2100" max="2800" step="1">
+  </div>
+  <div>
+    <label for="fft">FFT bins</label>
+    <select id="fft"><option>512</option><option>1024</option><option selected>2048</option><option>4096</option></select>
+  </div>
+  <div>
+    <label for="bits">Sample depth</label>
+    <select id="bits"><option value="8" selected>8-bit I/Q</option><option value="10">10-bit I/Q</option></select>
+  </div>
+  <div>
+    <label for="floor">Floor (dBFS)</label>
+    <input type="number" id="floor" value="-110" step="5">
+  </div>
+  <div>
+    <label for="range">Range (dB)</label>
+    <input type="number" id="range" value="90" step="5">
+  </div>
+  <div>
+    <label for="avgmode">Trace averaging</label>
+    <select id="avgmode"><option value="off">Off</option><option value="short" selected>Short</option><option value="medium">Medium</option><option value="high">High</option></select>
+  </div>
+  <div>
+    <label class="inline"><input type="checkbox" id="agc" checked> Hardware AGC</label>
+    <label for="gain">Manual gain index <span id="gainval">40</span></label>
+    <input type="range" id="gain" min="0" max="60" value="40" disabled>
+  </div>
+</div>
+
+<div class="stats">
+  <div><div class="n" id="fps">—</div><div class="k">frames / s</div></div>
+  <div><div class="n" id="peak">—</div><div class="k">peak MHz</div></div>
+  <div><div class="n" id="peakdb">—</div><div class="k">peak dBFS</div></div>
+  <div><div class="n" id="cap-us">—</div><div class="k">µs / capture</div></div>
+  <div><div class="n" id="retries">—</div><div class="k">retries</div></div>
+</div>
+
+<div class="panel" style="margin-top:16px">
+  <h2>Serial log</h2>
+  <div id="log"></div>
+  <div class="logbar">
+    <input id="logcmd" placeholder="Firmware command, e.g. INFO (ignored in simulator)">
+    <button id="logsend">Send</button>
+  </div>
+</div>
+
+<!-- ================= ABOUT ================= -->
+<section class="doc" id="about">
+  <h2>About this demo</h2>
+
+  <h3>What it shows</h3>
+  <p>
+    Every ESP32 chip has a 2.4 GHz radio. This demo uses a hidden feature of that radio
+    to grab the raw signal itself — not Wi-Fi packets, the actual waveform — and draw it
+    three ways: a <strong>spectrum</strong> (how much energy at each frequency), a
+    <strong>waterfall</strong> (that spectrum scrolling over time), and an
+    <strong>I/Q scatter</strong> (the raw radio samples as dots, the thing a “constellation”
+    is made of). It’s a real software-defined radio built from a $5 board.
+  </p>
+  <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
+    watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
+    sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
+
+  <h3>Hardware</h3>
+  <table>
+    <tr><th>Role</th><th>Board</th><th>Extras</th><th>Power</th></tr>
+    <tr><td>Receiver</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>Laptop USB-C</td></tr>
+    <tr><td>Jammer (optional)</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>USB bank / laptop</td></tr>
+  </table>
+  <p class="tag">The receiver is the only board the browser talks to. The jammer is a separate node that gives
+    you a guaranteed signal to point at even in an RF-quiet room; skip it and the demo still works on the
+    room’s own Wi-Fi.</p>
+
+  <h3>Wiring</h3>
+  <div class="wiringfig">
+    <!-- inline copy of wiring/wiring.svg so it themes with the page -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12">
+      <style>
+        .board { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
+        .lbl { fill: var(--ink); } .mut { fill: var(--muted); }
+        .wire { fill: none; stroke: var(--accent); stroke-width: 2; }
+        .ant { fill: none; stroke: var(--ok); stroke-width: 2; }
+        .pad { fill: var(--grid); stroke: var(--muted); stroke-width: 1; }
+      </style>
+      <rect x="20" y="130" width="90" height="60" rx="6" class="board"/>
+      <text x="65" y="165" text-anchor="middle" class="lbl">Laptop</text>
+      <text x="65" y="180" text-anchor="middle" class="mut" font-size="10">Chrome / Edge</text>
+      <path d="M110 160 H 170" class="wire"/>
+      <text x="140" y="152" text-anchor="middle" class="mut" font-size="10">USB-C</text>
+      <rect x="170" y="120" width="130" height="80" rx="6" class="board"/>
+      <text x="235" y="145" text-anchor="middle" class="lbl" font-weight="600">XIAO ESP32-C3</text>
+      <text x="235" y="160" text-anchor="middle" class="mut" font-size="10">RECEIVER</text>
+      <text x="235" y="174" text-anchor="middle" class="mut" font-size="10">ESP-SDR firmware</text>
+      <circle cx="235" cy="120" r="4" class="pad"/>
+      <path d="M235 120 V 95 h 30" class="ant"/>
+      <text x="270" y="92" class="mut" font-size="10">antenna (u.FL)</text>
+      <rect x="420" y="120" width="130" height="80" rx="6" class="board"/>
+      <text x="485" y="145" text-anchor="middle" class="lbl" font-weight="600">XIAO ESP32-C3</text>
+      <text x="485" y="160" text-anchor="middle" class="mut" font-size="10">JAMMER (optional)</text>
+      <text x="485" y="174" text-anchor="middle" class="mut" font-size="10">CircuitPython</text>
+      <circle cx="485" cy="120" r="4" class="pad"/>
+      <path d="M485 120 V 95 h 30" class="ant"/>
+      <text x="520" y="92" class="mut" font-size="10">antenna (u.FL)</text>
+      <rect x="560" y="210" width="70" height="40" rx="6" class="board"/>
+      <text x="595" y="234" text-anchor="middle" class="mut" font-size="10">USB power</text>
+      <path d="M485 200 V 230 H 560" class="wire"/>
+      <path d="M300 185 H 420" class="wire" stroke-dasharray="5 4"/>
+      <text x="360" y="178" text-anchor="middle" class="mut" font-size="10">GPIO4 enable (optional)</text>
+      <circle cx="300" cy="185" r="3" class="pad"/>
+      <circle cx="420" cy="185" r="3" class="pad"/>
+      <text x="360" y="205" text-anchor="middle" class="mut" font-size="9">tie GND to GND if using the enable line</text>
+    </svg>
+  </div>
+  <table>
+    <tr><th>Signal</th><th>Receiver pin</th><th>Goes to</th><th>Note</th></tr>
+    <tr><td>USB data + power</td><td>USB-C</td><td>Laptop</td><td>The only required connection</td></tr>
+    <tr><td>Antenna</td><td>u.FL</td><td>Whip antenna</td><td>Clip it on firmly — it’s the only antenna the C3 has</td></tr>
+    <tr><td>Jammer enable</td><td>GPIO4</td><td>Jammer GPIO (any input)</td><td>Optional; share GND between the two boards</td></tr>
+  </table>
+
+  <h3>How it works</h3>
+  <p>
+    radio front end → raw I/Q samples in the chip’s RAM → USB serial (<code>CAP16</code> bursts) →
+    this page runs an FFT and plots all three views. Nothing leaves your laptop; there’s no server.
+    The firmware protocol is documented in <a href="https://github.com/ESPARGOS/esp-sdr/blob/main/docs/protocol.md">ESP-SDR’s protocol.md</a>,
+    and this page’s client is in <code>js/radio.js</code>.
+  </p>
+  <p><strong>Known quirks:</strong></p>
+  <ul>
+    <li>Captures come in bursts with gaps between them — the sample rate (80 MS/s) describes one burst, not sustained throughput. That’s normal for the C3.</li>
+    <li>Power is in uncalibrated dBFS, not dBm. Good for “louder / quieter,” not for absolute measurements.</li>
+    <li>If the antenna is loose, you’ll see only noise. Check the u.FL first.</li>
+    <li>If the board won’t take new firmware: hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, then retry the installer.</li>
+    <li>Close any other SDR page or serial monitor — only one program can hold the port.</li>
+  </ul>
+</section>
+
+<!-- ================= FIRMWARE ================= -->
+<section class="doc" id="firmware">
+  <h2>Put the firmware on the board</h2>
+  <p>One-time step for each XIAO ESP32-C3. Nothing to install on your computer; it all happens in the browser.</p>
+  <ol class="steps">
+    <li><strong>Open the installer.</strong> Go to the <a href="https://espargos.net/espsdr/app/flash.html">ESP-SDR browser installer</a> in Chrome or Edge.</li>
+    <li><strong>Plug in the XIAO</strong> over USB-C. If the installer can’t find it, hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, and reconnect.</li>
+    <li><strong>Flash the ESP32-C3 build.</strong> Pick the C3 target and let it write. This demo is pinned to ESP-SDR firmware; see <code>firmware/VERSION.txt</code> for the exact build this page was tested against.</li>
+    <li><strong>Connect.</strong> Scroll up, click <strong>Connect board</strong>, and pick the port named <em>USB JTAG/serial</em> (or <em>USB Serial Device</em> on Windows).</li>
+  </ol>
+  <p class="tag">The receiver runs ESP-SDR’s unmodified firmware — we don’t ship our own. The optional jammer node runs a
+    tiny CircuitPython sketch; see <code>firmware/jammer/</code> in the repo.</p>
+</section>
+
+<footer>
+  ESP-SDR Demo v0.1.0 · Last updated 2026-11-04 · Part of
+  <a href="https://interactive-hardware-interfacing.github.io/">Interactive Hardware Interfacing</a>.
+  Works in Chrome and Edge via Web Serial.
+  Receiver firmware by <a href="https://github.com/ESPARGOS/esp-sdr">ESPARGOS ESP-SDR</a> (GPL-3.0).
+  This page <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/LICENSE">GPL-3.0-or-later</a>.
+  Maintained by <a href="https://github.com/LC-Linkous">LC Linkous</a>.
+</footer>
+
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

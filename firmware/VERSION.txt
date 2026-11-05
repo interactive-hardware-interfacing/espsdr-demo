@@ -1,0 +1,17 @@
+Receiver firmware: ESPARGOS ESP-SDR
+Source:   https://github.com/ESPARGOS/esp-sdr
+Target:   esp32c3 (burst firmware)
+Installer: https://espargos.net/espsdr/app/flash.html
+
+This demo does NOT ship its own receiver firmware. Flash the stock ESP-SDR
+C3 build from the browser installer above.
+
+Tested against ESP-SDR identity string:  C3SDR 6 burst 16380
+Protocol doc:  https://github.com/ESPARGOS/esp-sdr/blob/main/docs/protocol.md
+
+>>> Before a tour, re-flash from the installer so you are on the current
+>>> build, then confirm the identity line still parses (see PROTOCOL.md).
+>>> If ESPARGOS bumps the protocol version, update the INFO regex in
+>>> js/radio.js (_negotiate) and this file.
+
+Pinned/last-verified build date: ____________  (fill in when you flash the kit)
