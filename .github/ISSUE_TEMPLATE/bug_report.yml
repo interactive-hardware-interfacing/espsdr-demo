@@ -1,0 +1,87 @@
+name: Bug report
+description: The page or firmware isn't behaving as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Try **Try without hardware** first — if the
+        problem shows up there too, it's a page bug and no board details are
+        needed.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is the problem?
+      options:
+        - Web page (live site)
+        - Web page (local copy)
+        - ESP-SDR receiver firmware (upstream, ESPARGOS)
+        - Jammer firmware (`firmware/jammer/code.py`)
+        - Wiring
+        - Docs / README / PROTOCOL.md
+        - Deploy (GitHub Pages)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Click by click. Say what the boards were doing at the time.
+      placeholder: |
+        1. Plug in the bridge, click Connect
+        2. Power the second board
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Was hardware connected?
+      description: This demo uses a XIAO ESP32-C3 running ESPARGOS ESP-SDR firmware (optionally a second C3 as the jammer).
+      options:
+        - Yes — receiver board
+        - Yes — receiver + jammer
+        - No — Try without hardware (simulator)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware identification
+      description: Paste the reply to `INFO` from the serial log. Leave blank in simulator mode.
+      placeholder: 'C3SDR 6 burst 16380'
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "e.g. Chrome 130 / Edge 130 — from chrome://version"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. Windows 11 / Ubuntu 24.04 / macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Serial log
+      description: Copy the serial log panel from the page (or a serial terminal at the documented baud rate) around the time of the problem.
+      render: text
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console errors
+      description: If it's a page problem — press F12, open *Console*, and paste anything red.
+      render: text

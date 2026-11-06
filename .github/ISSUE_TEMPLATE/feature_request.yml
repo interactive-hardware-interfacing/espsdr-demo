@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest an improvement to the page, the firmware, or the demo flow
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas from people who've run this in front of a group are the most
+        useful kind. Say what you were trying to show, not just what you want
+        added.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What were you trying to do or show that the demo doesn't support, or makes awkward?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What would it look like? A sketch of the control, the line format, or the output is helpful.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Page — spectrum
+        - Page — waterfall
+        - Page — I/Q scatter
+        - Page — serial log / connect flow
+        - Protocol (PROTOCOL.md)
+        - ESP-SDR receiver firmware (upstream, ESPARGOS)
+        - Jammer firmware (`firmware/jammer/code.py`)
+        - Wiring
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: protocol
+    attributes:
+      label: Protocol impact
+      options:
+        - label: This would change PROTOCOL.md (and therefore the firmware, the page, and the simulator together)
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds
+      description: Anything you're doing today instead.

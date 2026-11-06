@@ -1,0 +1,28 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*~
+*.swp
+.vscode/
+.idea/
+
+# Python (local http.server, scratch scripts)
+__pycache__/
+*.pyc
+.venv/
+
+# Build / flash artifacts
+build/
+_site/
+*.uf2
+*.bin
+*.elf
+
+# Files that end up alongside code.py if a CIRCUITPY drive is copied in whole.
+# settings.toml can hold Wi-Fi credentials — never commit it.
+boot_out.txt
+settings.toml
+.fseventsd/
+.metadata_never_index
+.Trashes
+lib/

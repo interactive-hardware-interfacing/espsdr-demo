@@ -1,0 +1,23 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Open the demo
+    url: https://interactive-hardware-interfacing.github.io/espsdr-demo/
+    about: The live page. Try the simulator first to see whether the problem needs a board to reproduce.
+  - name: Protocol reference
+    url: https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/PROTOCOL.md
+    about: The serial line format and payload layout. Check here before reporting a line as wrong.
+  - name: Wiring
+    url: https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/wiring/wiring.md
+    about: Pinout and hookup for every board in this demo.
+  - name: ESP-SDR firmware and protocol (ESPARGOS)
+    url: https://github.com/ESPARGOS/esp-sdr
+    about: The receiver firmware is upstream. Flashing problems and protocol questions about the radio itself belong there.
+  - name: XIAO ESP32-C3 getting started (Seeed)
+    url: https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/
+    about: Board-level problems — won't enumerate, no serial port, antenna questions — are answered here.
+  - name: CircuitPython for the XIAO ESP32-C3
+    url: https://circuitpython.org/board/seeed_xiao_esp32c3/
+    about: Download and install steps for the CircuitPython build the firmware runs on.
+  - name: Web Serial browser support
+    url: https://caniuse.com/web-serial
+    about: Connect only works in Chrome and Edge. If your browser isn't listed as supported here, that's why.
