@@ -5,21 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESP-SDR Demo</title>
 <meta name="description" content="Turn a XIAO ESP32-C3 into a 2.4 GHz software-defined radio in the browser: live spectrum, waterfall and raw I/Q scatter over Web Serial.">
-<link rel="stylesheet" href="css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=0.2.0">
 </head>
 <body>
 <div class="wrap">
 
 <header>
+  <p class="eyebrow"><a href="https://interactive-hardware-interfacing.github.io/#wireless">Wireless communication</a> · demo</p>
   <h1>ESP-SDR Demo</h1>
   <p class="tag">A XIAO ESP32-C3 as a 2.4 GHz software-defined radio — spectrum, waterfall and raw I/Q, live in your browser.</p>
-  <nav>
-    <a href="#firmware">Firmware</a>
-    <a href="#about">About</a>
+  <nav aria-label="Page">
+    <a href="#" data-view="" aria-current="page">Instrument</a>
+    <a href="#hardware" data-view="hardware" aria-current="false">Hardware</a>
+    <a href="#firmware" data-view="firmware" aria-current="false">Firmware</a>
+    <a href="#about" data-view="about" aria-current="false">About</a>
+    <span class="navsep" aria-hidden="true"></span>
     <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo">Source</a>
     <a href="https://interactive-hardware-interfacing.github.io/">All tools</a>
   </nav>
 </header>
+
+<!-- ================= INSTRUMENT ================= -->
+<div id="instrument">
 
 <div class="bar">
   <button id="connect" class="primary">Connect board</button>
@@ -85,33 +95,26 @@
   <div><div class="n" id="retries">—</div><div class="k">retries</div></div>
 </div>
 
-<div class="panel" style="margin-top:16px">
-  <h2>Serial log</h2>
+<div class="termpanel">
+  <div class="termbar"><span class="dots"><i></i><i></i><i></i></span><span>serial log · 115200 8N1 · ESP-SDR text protocol</span></div>
   <div id="log"></div>
   <div class="logbar">
     <input id="logcmd" placeholder="Firmware command, e.g. INFO (ignored in simulator)">
-    <button id="logsend">Send</button>
+    <button id="logsend" class="small">Send</button>
   </div>
 </div>
 
-<!-- ================= ABOUT ================= -->
-<section class="doc" id="about">
-  <h2>About this demo</h2>
+</div><!-- /instrument -->
 
-  <h3>What it shows</h3>
-  <p>
-    Every ESP32 chip has a 2.4 GHz radio. This demo uses a hidden feature of that radio
-    to grab the raw signal itself — not Wi-Fi packets, the actual waveform — and draw it
-    three ways: a <strong>spectrum</strong> (how much energy at each frequency), a
-    <strong>waterfall</strong> (that spectrum scrolling over time), and an
-    <strong>I/Q scatter</strong> (the raw radio samples as dots, the thing a “constellation”
-    is made of). It’s a real software-defined radio built from a $5 board.
-  </p>
-  <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
-    watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
-    sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
+<!-- ================= HARDWARE ================= -->
+<section class="view" id="hardware" aria-label="Hardware" hidden>
+  <div class="viewhead">
+    <h2>Hardware</h2>
+    <p class="lede">One board is the radio. A second, optional one gives you something to listen to.</p>
+    <button type="button" class="small" data-back>Back to instrument</button>
+  </div>
 
-  <h3>Hardware</h3>
+  <h3>Boards</h3>
   <table>
     <tr><th>Role</th><th>Board</th><th>Extras</th><th>Power</th></tr>
     <tr><td>Receiver</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>Laptop USB-C</td></tr>
@@ -124,7 +127,7 @@
   <h3>Wiring</h3>
   <div class="wiringfig">
     <!-- inline copy of wiring/wiring.svg so it themes with the page -->
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12" role="img" aria-label="Laptop connected by USB-C to a XIAO ESP32-C3 receiver running ESP-SDR firmware with a u.FL antenna. An optional second XIAO ESP32-C3 jammer node with its own antenna and USB power; an optional GPIO4 enable wire from the receiver to the jammer's D2, with grounds tied together.">
       <style>
         .board { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
         .lbl { fill: var(--ink); } .mut { fill: var(--muted); }
@@ -155,7 +158,7 @@
       <text x="595" y="234" text-anchor="middle" class="mut" font-size="10">USB power</text>
       <path d="M485 200 V 230 H 560" class="wire"/>
       <path d="M300 185 H 420" class="wire" stroke-dasharray="5 4"/>
-      <text x="360" y="178" text-anchor="middle" class="mut" font-size="10">GPIO4 enable (optional)</text>
+      <text x="360" y="178" text-anchor="middle" class="mut" font-size="10">GPIO4 → D2 enable (optional)</text>
       <circle cx="300" cy="185" r="3" class="pad"/>
       <circle cx="420" cy="185" r="3" class="pad"/>
       <text x="360" y="205" text-anchor="middle" class="mut" font-size="9">tie GND to GND if using the enable line</text>
@@ -165,8 +168,53 @@
     <tr><th>Signal</th><th>Receiver pin</th><th>Goes to</th><th>Note</th></tr>
     <tr><td>USB data + power</td><td>USB-C</td><td>Laptop</td><td>The only required connection</td></tr>
     <tr><td>Antenna</td><td>u.FL</td><td>Whip antenna</td><td>Clip it on firmly — it’s the only antenna the C3 has</td></tr>
-    <tr><td>Jammer enable</td><td>GPIO4</td><td>Jammer GPIO (any input)</td><td>Optional; share GND between the two boards</td></tr>
+    <tr><td>Jammer enable</td><td>GPIO4</td><td>Jammer D2</td><td>Optional; share GND between the two boards</td></tr>
   </table>
+  <table>
+    <tr><th>Signal</th><th>Jammer pin</th><th>Goes to</th><th>Note</th></tr>
+    <tr><td>Enable in</td><td>D2 (GPIO4)</td><td>Receiver GPIO4</td><td>Pull-down; high = transmit. Skip it and set <code>ALWAYS_ON = True</code> in <code>code.py</code></td></tr>
+    <tr><td>GND</td><td>GND</td><td>Receiver GND</td><td>Only needed with the enable wire</td></tr>
+    <tr><td>USB power</td><td>USB-C</td><td>USB bank or laptop</td><td>Separate from the receiver</td></tr>
+    <tr><td>Antenna</td><td>u.FL</td><td>Whip antenna</td><td>Clip on firmly</td></tr>
+  </table>
+
+  <h3>Parts</h3>
+  <ul>
+    <li>Seeed XIAO ESP32-C3 — one for the receiver, a second for the optional jammer — with the u.FL antenna that ships with it.</li>
+    <li>USB-C data cable (not charge-only) for the receiver; any USB-C power for the jammer.</li>
+    <li>Optional: two jumper wires (GPIO4 → D2, GND → GND) so the page’s Jammer button can switch the jammer on and off.</li>
+  </ul>
+
+  <h3>Things that bite</h3>
+  <ul>
+    <li>A loose u.FL shows only noise. Check the antenna before anything else.</li>
+    <li>Only one program can hold the receiver’s port: close any other SDR page or serial monitor.</li>
+    <li>Both boards are 3.3 V logic; the enable wire needs no level shifting. Don’t tie D0, D8 (SCK) or D9 (MISO) to ground at power-up on either board — those are ESP32-C3 strapping pins.</li>
+    <li>If the receiver won’t take new firmware: hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, then retry the installer.</li>
+  </ul>
+  <p class="tag">Pinout detail is in <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/wiring/wiring.md">wiring/wiring.md</a>.</p>
+</section>
+
+<!-- ================= ABOUT ================= -->
+<section class="view" id="about" aria-label="About this demo" hidden>
+  <div class="viewhead">
+    <h2>About this demo</h2>
+    <p class="lede">What it shows, how to run it in front of a room, and how the signal gets from the air to the screen.</p>
+    <button type="button" class="small" data-back>Back to instrument</button>
+  </div>
+
+  <h3>What it shows</h3>
+  <p>
+    Every ESP32 chip has a 2.4 GHz radio. This demo uses a hidden feature of that radio
+    to grab the raw signal itself — not Wi-Fi packets, the actual waveform — and draw it
+    three ways: a <strong>spectrum</strong> (how much energy at each frequency), a
+    <strong>waterfall</strong> (that spectrum scrolling over time), and an
+    <strong>I/Q scatter</strong> (the raw radio samples as dots, the thing a “constellation”
+    is made of). It’s a real software-defined radio built from a $5 board.
+  </p>
+  <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
+    watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
+    sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
 
   <h3>How it works</h3>
   <p>
@@ -179,36 +227,89 @@
   <ul>
     <li>Captures come in bursts with gaps between them — the sample rate (80 MS/s) describes one burst, not sustained throughput. That’s normal for the C3.</li>
     <li>Power is in uncalibrated dBFS, not dBm. Good for “louder / quieter,” not for absolute measurements.</li>
-    <li>If the antenna is loose, you’ll see only noise. Check the u.FL first.</li>
-    <li>If the board won’t take new firmware: hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, then retry the installer.</li>
-    <li>Close any other SDR page or serial monitor — only one program can hold the port.</li>
   </ul>
+
+  <h3>The pieces</h3>
+  <table>
+    <tr><th>Part</th><th>What it is</th></tr>
+    <tr><td><code>index.html</code>, <code>css/</code>, <code>js/app.js</code></td><td>This page. No build step, no framework.</td></tr>
+    <tr><td><code>js/radio.js</code></td><td>Web Serial client for ESP-SDR: INFO, SET, CAP16 bursts, the FFT. Adapted from ESPARGOS’s esp-web-sdr.</td></tr>
+    <tr><td><code>js/sim.js</code></td><td>A fake radio: Wi-Fi humps, noise, and a jammer spike, for the simulator.</td></tr>
+    <tr><td><code>js/install.js</code>, <code>js/device/</code>, <code>flasher/</code></td><td>The Firmware tab: CircuitPython raw REPL for the jammer, esptool-js for a bare board.</td></tr>
+    <tr><td><code>firmware/jammer/code.py</code></td><td>The jammer node. The receiver firmware is ESPARGOS’s and is not in this repo.</td></tr>
+    <tr><td><code>PROTOCOL.md</code>, <code>wiring/</code></td><td>The serial contract and the hookup.</td></tr>
+  </table>
+  <p class="tag">Part of <a href="https://interactive-hardware-interfacing.github.io/">Interactive Hardware Interfacing</a>.
+    GPL-3.0-or-later; <code>flasher/</code> is Apache-2.0 — see <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/LICENSES.md">LICENSES.md</a>.</p>
 </section>
 
 <!-- ================= FIRMWARE ================= -->
-<section class="doc" id="firmware">
-  <h2>Put the firmware on the board</h2>
-  <p>One-time step for each XIAO ESP32-C3. Nothing to install on your computer; it all happens in the browser.</p>
-  <ol class="steps">
-    <li><strong>Open the installer.</strong> Go to the <a href="https://espargos.net/espsdr/app/flash.html">ESP-SDR browser installer</a> in Chrome or Edge.</li>
-    <li><strong>Plug in the XIAO</strong> over USB-C. If the installer can’t find it, hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, and reconnect.</li>
-    <li><strong>Flash the ESP32-C3 build.</strong> Pick the C3 target and let it write. This demo is pinned to ESP-SDR firmware; see <code>firmware/VERSION.txt</code> for the exact build this page was tested against.</li>
-    <li><strong>Connect.</strong> Scroll up, click <strong>Connect board</strong>, and pick the port named <em>USB JTAG/serial</em> (or <em>USB Serial Device</em> on Windows).</li>
-  </ol>
-  <p class="tag">The receiver runs ESP-SDR’s unmodified firmware — we don’t ship our own. The optional jammer node runs a
-    tiny CircuitPython sketch; see <code>firmware/jammer/</code> in the repo.</p>
+<section class="view" id="firmware" aria-label="Firmware" hidden>
+  <div class="viewhead">
+    <h2>Put the firmware on the boards</h2>
+    <p class="lede">The receiver takes ESPARGOS’s ESP-SDR build from their installer; the optional jammer takes a CircuitPython file from this page. Chrome or Edge.</p>
+    <button type="button" class="small" data-back>Back to instrument</button>
+  </div>
+
+  <h3>Receiver — ESP-SDR</h3>
+  <div class="steps">
+    <div class="step"><b>1. Open the installer</b><p>Go to the <a href="https://espargos.net/espsdr/app/flash.html">ESP-SDR browser installer</a>. It flashes the stock build straight from the browser; nothing to install on your computer.</p></div>
+    <div class="step"><b>2. Plug in the XIAO</b><p>USB-C data cable. If the installer can’t find it, hold <b>BOOT</b>, tap <b>RESET</b>, release <b>BOOT</b>, and reconnect.</p></div>
+    <div class="step"><b>3. Flash the ESP32-C3 build</b><p>Pick the C3 target and let it write. <code>firmware/VERSION.txt</code> records the identity string this page was tested against (<code>C3SDR 6 burst 16380</code>).</p></div>
+    <div class="step"><b>4. Connect</b><p>Back on the instrument, click <b>Connect board</b> and pick the port named <em>USB JTAG/serial</em> (<em>USB Serial Device</em> on Windows). Type <code>INFO</code> in the serial log to see it answer.</p></div>
+  </div>
+  <p class="tag">The receiver runs ESP-SDR’s unmodified firmware; this repo doesn’t ship it. Flashing problems with it belong <a href="https://github.com/ESPARGOS/esp-sdr">upstream</a>.</p>
+
+  <h3>Jammer (optional) — CircuitPython</h3>
+  <div class="steps">
+    <div class="step"><b>1. Plug in</b><p>Connect the second XIAO ESP32-C3 over USB. If the instrument is connected to the receiver, this page disconnects it first.</p></div>
+    <div class="step"><b>2. Install</b><p>Click <b>Install jammer</b> and pick that board’s port. The page writes <code>firmware/jammer/code.py</code> over CircuitPython’s REPL, checks its size and CRC on the board, reboots it, and waits for its <code>jammer ready</code> line.</p></div>
+    <div class="step"><b>3. Move it</b><p>Antenna on, USB bank, a few feet from the receiver. Wire GPIO4 → D2 and GND → GND if you want the page’s <b>Jammer</b> button to switch it; otherwise set <code>ALWAYS_ON = True</code> in <code>code.py</code> before installing.</p></div>
+  </div>
+
+  <div class="panel fwpanel">
+    <div class="fwrow">
+      <button id="fwInstallJammer" class="primary">Install jammer</button>
+      <span id="fwStatus" class="fwstatus">Ready. Plug the jammer board in and click Install.</span>
+    </div>
+    <progress id="fwBar" max="1" value="0" hidden></progress>
+    <div class="note" id="fwNoRepl" hidden>
+      <strong>No CircuitPython on that board.</strong> A XIAO ESP32-C3 fresh from the bag runs Seeed’s factory sketch, not CircuitPython. Install CircuitPython once with the button below, then come back to <b>Install jammer</b>. (The receiver board runs ESP-SDR and never needs CircuitPython.)
+    </div>
+    <div class="cpflash">
+      <h3>Bare jammer board? Install CircuitPython first</h3>
+      <ol>
+        <li>Download the <b>.bin</b> (not the .uf2) for the XIAO ESP32-C3 from <a href="https://circuitpython.org/board/seeed_xiao_esp32c3/" target="_blank" rel="noopener">circuitpython.org</a>. The download site doesn’t let a page fetch it directly, so it’s a save-then-pick.</li>
+        <li><button id="cpLoad" class="small">Choose .bin…</button> <input type="file" id="cpFile" accept=".bin" hidden> <span id="cpName" class="tag">nothing chosen</span></li>
+        <li><button id="cpFlash" class="small" disabled>Flash CircuitPython</button> — erases the board and writes the image (about a minute). If the chip doesn’t answer, unplug, hold <b>BOOT</b> while plugging back in, and retry.</li>
+      </ol>
+      <p class="tag">This step uses <a href="https://github.com/espressif/esptool-js">esptool-js</a>, kept in <code>flasher/</code> under its own licence (Apache-2.0).</p>
+    </div>
+    <h3>Log</h3>
+    <div id="fwLog" class="fwlog" aria-live="polite"></div>
+  </div>
+
+  <details>
+    <summary>Doing the jammer by hand instead</summary>
+    <ul>
+      <li><strong>Thonny:</strong> Tools → Options → Interpreter → <em>CircuitPython (generic)</em>, pick the port, open <code>firmware/jammer/code.py</code>, then File → Save as… → <em>CircuitPython device</em>, name it <code>code.py</code>.</li>
+      <li><strong>CircuitPython from a terminal:</strong> <code>pip install esptool</code>, then <code>esptool.py --chip esp32c3 --port COMn erase_flash</code> and <code>esptool.py --chip esp32c3 --port COMn write_flash 0x0 adafruit-circuitpython-seeed_xiao_esp32c3-en_US-&lt;version&gt;.bin</code>.</li>
+      <li>The REPL exchange the page uses is written out in <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/PROTOCOL.md">PROTOCOL.md</a>.</li>
+    </ul>
+  </details>
 </section>
 
 <footer>
-  ESP-SDR Demo v0.1.0 · Last updated 2026-11-04 · Part of
+  ESP-SDR Demo v0.2.0 · Last updated 2026-11-06 · Part of
   <a href="https://interactive-hardware-interfacing.github.io/">Interactive Hardware Interfacing</a>.
   Works in Chrome and Edge via Web Serial.
   Receiver firmware by <a href="https://github.com/ESPARGOS/esp-sdr">ESPARGOS ESP-SDR</a> (GPL-3.0).
-  This page <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/LICENSE">GPL-3.0-or-later</a>.
+  This page <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/LICENSE">GPL-3.0-or-later</a>,
+  <code>flasher/</code> Apache-2.0 (<a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/LICENSES.md">LICENSES.md</a>).
   Maintained by <a href="https://github.com/LC-Linkous">LC Linkous</a>.
 </footer>
 
 </div>
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=0.2.0"></script>
 </body>
 </html>

@@ -30,6 +30,38 @@ firmware** (flash it from the [browser installer](https://espargos.net/espsdr/ap
 this repo ships only the page, not the receiver firmware. See
 [`firmware/VERSION.txt`](firmware/VERSION.txt) and [`PROTOCOL.md`](PROTOCOL.md).
 
+## Putting the firmware on the boards
+
+**Receiver:** ESPARGOS's installer, linked above. The page's **Firmware** tab
+walks through it.
+
+**Jammer (optional):** the page does it. Open the **Firmware** tab, plug in
+the second XIAO ESP32-C3, click **Install jammer**, pick the port. The page
+writes `firmware/jammer/code.py` through CircuitPython's raw REPL over Web
+Serial (the C3 has no `CIRCUITPY` drive, so this is the only USB path),
+verifies size and CRC32 on the board, reboots it, and waits for its
+`jammer ready` line.
+
+A jammer board that has never run CircuitPython needs it installed once:
+download the `.bin` for the XIAO ESP32-C3 from
+[circuitpython.org](https://circuitpython.org/board/seeed_xiao_esp32c3/),
+pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
+[esptool-js](https://github.com/espressif/esptool-js), kept in
+[`flasher/`](flasher/) under its own licence.
+
+## What's in the repo
+
+| Path | What it is |
+|---|---|
+| `index.html`, `css/`, `js/app.js` | The page: instrument, plus Hardware / Firmware / About views (`js/views.js`). |
+| `js/radio.js` | Web Serial client for ESP-SDR and the FFT. Adapted from ESPARGOS's esp-web-sdr. |
+| `js/sim.js` | A fake radio for **Try without hardware**. |
+| `js/install.js`, `js/device/` | The Firmware tab: CircuitPython raw REPL over Web Serial (write, verify, reboot) for the jammer. |
+| `flasher/` | CircuitPython flashing for a bare jammer board (esptool-js). Apache-2.0, see `LICENSES.md`. |
+| `firmware/jammer/code.py` | The optional jammer node. |
+| `firmware/VERSION.txt` | Which ESP-SDR build the receiver was tested with. |
+| `PROTOCOL.md`, `wiring/` | The serial contract and the hookup. |
+
 ## Run locally
 
 ```
@@ -47,7 +79,8 @@ Chrome or Edge on a laptop/desktop (Web Serial). The simulator works anywhere.
 
 Page, JS and docs: **GPL-3.0-or-later** (see [`LICENSE`](LICENSE)) — the Web
 Serial client borrows structure from ESPARGOS's GPL-3.0 `esp-web-sdr`, so the
-page inherits GPL-3.0. The receiver firmware is ESPARGOS's and keeps its own
-license.
+page inherits GPL-3.0. `flasher/` is Apache-2.0 (it bundles esptool-js); see
+[`LICENSES.md`](LICENSES.md). The receiver firmware is ESPARGOS's and keeps its
+own license.
 
 Maintained by [LC Linkous](https://github.com/LC-Linkous).

@@ -1,96 +1,209 @@
+/* ============================================================================
+   Demo stylesheet — Interactive Hardware Interfacing
+   ----------------------------------------------------------------------------
+   Part 1 is the shared base: tokens and components every demo page uses. It
+   follows the org style guide (style_guide.md in the hub repo): grayscale
+   structure, four accents with one meaning each, mono for labels and values,
+   sans for sentences. Copy Part 1 into another demo unchanged; put anything
+   that only that demo needs in Part 2.
+
+     cyan     the Wireless communication track (lead accent on these demos)
+     yellow   the Electronics lab track / numbers inside a terminal
+     magenta  the live terminal (the serial log)
+     green    works now: connected, ok, demo mode
+
+   The greys carry a blue tint (taken from the LED I–V Lab's dark theme)
+   rather than the landing page's neutral near-black, so a demo reads as a
+   workbench page and the landing page reads as a cover.
+   ============================================================================ */
+
+/* ---- Part 1: shared base --------------------------------------------------- */
+
 :root {
-  --bg: #fbfbfa;
-  --panel: #ffffff;
-  --ink: #1a1a18;
-  --muted: #6b6b66;
-  --grid: #d8d8d2;
-  --accent: #b5460f;
-  --accent-soft: #f3e2d8;
-  --ok: #2f7d32;
-  --warn: #9a6a00;
-  --border: #e4e4de;
-  --radius: 10px;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16181c;
-    --panel: #1e2126;
-    --ink: #e8e8e4;
-    --muted: #9a9a92;
-    --grid: #343941;
-    --accent: #ff7a3d;
-    --accent-soft: #3a2518;
-    --ok: #7bc47f;
-    --warn: #d9a441;
-    --border: #2b2f36;
-  }
+  --bg:          #0e1218;
+  --bg-2:        #141a22;
+  --card:        #171e28;
+  --card-hover:  #1c2430;
+  --line:        #273040;
+  --line-strong: #36425a;
+  --text:        #e8ebf0;
+  --muted:       #9aa3b2;
+  --faint:       #6b7483;
+
+  --cyan:    #22d3ee;
+  --magenta: #f472b6;
+  --green:   #4ade80;
+  --yellow:  #facc15;
+  --cyan-dim:    rgba(34, 211, 238, .12);
+  --magenta-dim: rgba(244, 114, 182, .12);
+  --green-dim:   rgba(74, 222, 128, .12);
+  --yellow-dim:  rgba(250, 204, 21, .12);
+
+  /* track accent: wireless demos are cyan; a lab tool would set --accent: var(--yellow) */
+  --accent:      var(--cyan);
+  --accent-dim:  var(--cyan-dim);
+  --accent-ink:  #04141a;            /* text on an accent-filled button */
+
+  /* names the page scripts read with getComputedStyle (canvas drawing) */
+  --ok:    var(--green);
+  --warn:  var(--yellow);
+  --err:   #f87171;
+  --grid:  var(--line);
+  --ink:   var(--text);
+  --panel: var(--card);
+  --border: var(--line);
+
+  --sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --max: 1080px;
+  --radius: 12px;
+  --radius-sm: 9px;
 }
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  padding: 0 16px;
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 16px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 1000px; margin: 0 auto; padding: 24px 0 64px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .mono { font-family: var(--mono); }
+code { font-size: .88em; color: var(--text); background: var(--bg-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: var(--accent-dim); }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px 56px; }
 
-header h1 { font-size: 1.6rem; margin: 0 0 2px; }
-header .tag { color: var(--muted); margin: 0 0 10px; }
-nav { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; font-size: .92rem; }
-nav a { color: var(--accent); text-decoration: none; }
-nav a:hover { text-decoration: underline; }
+/* header: eyebrow (mono, accent), title, lede, then the tab row */
+header { position: relative; padding: 34px 0 0; }
+header::before {
+  content: ""; position: absolute; inset: -40px -24px 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px; opacity: .22;
+  mask-image: radial-gradient(ellipse at 20% 30%, #000 10%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 20% 30%, #000 10%, transparent 70%);
+}
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+.eyebrow a { color: inherit; }
+header h1 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.1; margin: 0 0 8px; letter-spacing: -.015em; }
+header .tag { color: var(--muted); margin: 0 0 18px; font-size: 17px; max-width: 40em; }
+nav { display: flex; gap: 2px 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); margin-bottom: 22px; font-size: 15px; }
+nav a { color: var(--muted); padding: 10px 2px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+nav a:hover { color: var(--text); text-decoration: none; }
+nav a[data-view][aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 700; }
+nav .navsep { width: 1px; height: 16px; background: var(--line-strong); margin: 0 2px; }
 
-.bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+/* controls */
 button {
-  font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
-  background: var(--panel); color: var(--ink); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 15px; font-weight: 700; padding: 9px 16px;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--text); cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease, background .12s ease;
 }
-button:hover:not(:disabled) { border-color: var(--accent); }
+button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--faint); background: var(--card-hover); }
 button:disabled { opacity: .45; cursor: default; }
-button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-#status { margin-left: auto; color: var(--muted); font-size: .9rem; }
-#status.ok { color: var(--ok); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.primary:hover:not(:disabled) { filter: brightness(1.12); border-color: var(--accent); background: var(--accent); }
+button.small { padding: 6px 12px; font-size: 14px; }
+input[type=range] { accent-color: var(--accent); }
+input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+input[type=text], input:not([type]), select {
+  font: inherit; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: var(--bg-2); color: var(--text);
+}
+.inline { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; color: var(--muted); }
+.bar { display: flex; gap: 10px 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 
-.note { background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin: 10px 0; font-size: .92rem; }
+/* chips: dim fill, full accent text, no border (style guide) */
+.chip, #mode { display: inline-flex; align-items: center; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .04em; padding: 4px 10px; border-radius: 999px; background: var(--accent-dim); color: var(--accent); }
+#status { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+#status.ok { color: var(--green); }
+#status.ok::before { content: "●"; margin-right: 6px; }
 
-.grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.note { background: var(--yellow-dim); border: 1px solid transparent; border-radius: var(--radius-sm); padding: 10px 14px; margin: 10px 0; font-size: 15px; color: var(--text); }
+.note strong { color: var(--yellow); }
+
+/* panels: one step lighter than the page, 1px border, no shadow */
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.panel h2 { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 0 0 12px; }
+.grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-top: 16px; }
 @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+canvas { width: 100%; display: block; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
 
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
-.panel h2 { font-size: .95rem; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-canvas { width: 100%; display: block; background: var(--panel); border-radius: 6px; }
+/* the serial log is the terminal: magenta, by the style guide */
+.termpanel { background: #07090c; border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; margin-top: 16px;
+  box-shadow: 0 0 0 1px rgba(244,114,182,.08), 0 30px 60px -30px rgba(244,114,182,.35); }
+.termbar { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--faint); }
+.termbar .dots { display: flex; gap: 6px; }
+.termbar .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); display: block; }
+.termbar .dots i:first-child { background: var(--magenta); }
+#log { font-family: var(--mono); font-size: 13px; line-height: 1.6; color: #cbd3de; padding: 12px 16px; height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.logbar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.logbar input { flex: 1; font-family: var(--mono); font-size: 13px; background: #0b0e13; }
+.logbar input::placeholder { color: var(--faint); }
+.logbar button { font-family: var(--mono); font-weight: 600; }
+
+/* doc views (Hardware / Firmware / About) */
+section.view { margin-top: 4px; }
+section.view[hidden], #instrument[hidden] { display: none; }
+.viewhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+.viewhead h2 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+.viewhead .lede { margin: 0; color: var(--muted); flex: 1 1 auto; }
+.viewhead button { margin-left: auto; }
+section.view h3 { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 26px 0 10px; }
+section.view p, section.view li { color: var(--text); }
+section.view .tag { color: var(--muted); font-size: 15px; }
+section.view ul { padding-left: 20px; } section.view li { margin: 5px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 8px 0 12px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+td:first-child { color: var(--text); font-weight: 700; }
+.wiringfig { margin: 14px 0; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: var(--card); }
+.wiringfig svg { width: 100%; height: auto; }
+
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; counter-reset: step; }
+.step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.step > b { display: block; margin-bottom: 6px; font-size: 16px; }
+.step p { margin: 0; color: var(--muted); font-size: 15px; }
+details { margin-top: 22px; } summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+summary:hover { text-decoration: underline; }
+
+footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; }
+footer a { color: var(--muted); } footer a:hover { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } }
+@media (max-width: 600px) { .wrap { padding: 0 16px 48px; } header h1 { font-size: 26px; } nav { gap: 2px 14px; } }
+
+/* ---- Part 2: espsdr-demo ---------------------------------------------------- */
+
 #spectrum { height: 180px; }
 #waterfall { height: 120px; margin-top: 6px; image-rendering: pixelated; }
 #iq { aspect-ratio: 1 / 1; height: auto; }
+button.on { background: var(--magenta); color: #1a0a12; border-color: var(--magenta); }
+button.on:hover:not(:disabled) { background: var(--magenta); border-color: var(--magenta); filter: brightness(1.1); }
 
 .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }
-.controls label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 3px; }
-.controls select, .controls input[type=number] { width: 100%; padding: 6px; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.controls label { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.controls label span { color: var(--yellow); }
+.controls select, .controls input[type=number] { width: 100%; padding: 7px 9px; font: inherit; font-family: var(--mono); font-size: 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-2); color: var(--text); }
 .controls input[type=range] { width: 100%; }
-.inline { display: flex; align-items: center; gap: 6px; }
+.controls .inline { margin-bottom: 6px; }
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
-.stats div { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
-.stats .n { font-family: var(--mono); font-size: 1.1rem; }
-.stats .k { font-size: .75rem; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+.stats > div { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
+.stats .n { font-family: var(--mono); font-size: 20px; color: var(--yellow); line-height: 1.2; }
+.stats .k { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-top: 2px; }
 
-#log { font-family: var(--mono); font-size: .8rem; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px; height: 150px; overflow: auto; white-space: pre-wrap; }
-.logbar { display: flex; gap: 8px; margin-top: 8px; }
-.logbar input { flex: 1; padding: 6px; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); }
-
-section.doc { margin-top: 40px; }
-section.doc h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-section.doc h3 { font-size: 1rem; margin-top: 22px; }
-table { border-collapse: collapse; width: 100%; font-size: .9rem; margin: 10px 0; }
-th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); font-weight: 600; }
-code { font-family: var(--mono); font-size: .85em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
-ol.steps { padding-left: 20px; }
-ol.steps li { margin: 8px 0; }
-.wiringfig { margin: 14px 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; background: var(--panel); }
-.wiringfig svg { width: 100%; height: auto; }
-
-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
-footer a { color: var(--accent); }
+/* firmware tab */
+.fwpanel { margin-top: 8px; }
+.fwrow { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.fwstatus { color: var(--muted); font-size: 15px; flex: 1 1 240px; }
+.fwstatus.ok { color: var(--green); } .fwstatus.warn { color: var(--yellow); }
+progress#fwBar { width: 100%; height: 6px; margin-top: 12px; accent-color: var(--accent); border: 0; border-radius: 3px; overflow: hidden; }
+.cpflash { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
+.cpflash h3 { margin-top: 0 !important; }
+.cpflash ol { padding-left: 20px; } .cpflash li { margin: 7px 0; }
+.fwlog { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; background: #07090c; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 10px 12px; height: 170px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: #cbd3de; }
+.fwlog .dim { color: var(--faint); } .fwlog .ok { color: var(--green); } .fwlog .warn { color: var(--yellow); } .fwlog .tx { color: var(--magenta); }

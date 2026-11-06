@@ -9,6 +9,8 @@
 
 import { EspSdr } from './radio.js';
 import { SimSdr } from './sim.js';
+import { initViews } from './views.js';
+import { initInstall } from './install.js';
 
 const $ = sel => document.querySelector(sel);
 const logEl = $('#log');
@@ -36,23 +38,59 @@ function settings() {
 
 // ---- spectrum + waterfall ----
 const specCanvas = $('#spectrum'), specCtx = specCanvas.getContext('2d');
-const wfCanvas = $('#waterfall'), wfCtx = wfCanvas.getContext('2d');
+const wfCanvas = $('#waterfall'), wfCtx = wfCanvas.getContext('2d', { willReadFrequently: true });
 let wfImage = null;
 let avg = null; // trace averaging buffer
 
+// Size a canvas bitmap to its on-screen size × devicePixelRatio so lines and
+// text stay crisp; drawing code then works in CSS pixels through a transform.
+// Returns the CSS-pixel size. The waterfall is handled separately below
+// because its bitmap *is* its history.
+function fit(canvas, ctx) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { W: canvas.clientWidth, H: canvas.clientHeight };
+}
+// The waterfall scrolls by copying its own pixels, so a resize must carry the
+// old rows across rather than wipe them. One bitmap row per capture; the row
+// height follows DPR so it stays one CSS pixel tall.
+function fitWaterfall() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(wfCanvas.clientWidth * dpr));
+  const h = Math.max(1, Math.round(wfCanvas.clientHeight * dpr));
+  if (wfCanvas.width === w && wfCanvas.height === h) return;
+  let old = null;
+  try { old = wfCanvas.width && wfCanvas.height ? wfCtx.getImageData(0, 0, wfCanvas.width, wfCanvas.height) : null; } catch {}
+  wfCanvas.width = w; wfCanvas.height = h;
+  wfImage = null;
+  if (old) {
+    // stretch the old history onto the new size (stays readable; exact pixels don't matter)
+    const tmp = document.createElement('canvas'); tmp.width = old.width; tmp.height = old.height;
+    tmp.getContext('2d').putImageData(old, 0, 0);
+    wfCtx.imageSmoothingEnabled = false;
+    wfCtx.drawImage(tmp, 0, 0, w, h);
+  }
+}
+
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
-// Turbo-ish colormap for the waterfall (dB -> rgb)
+// Waterfall colormap (dB -> rgb). The bottom of the range fades into the
+// page background so quiet bins recede and only energy lights up; above that
+// it runs blue -> green -> yellow -> red like a conventional waterfall.
 function heat(t) {
   t = Math.max(0, Math.min(1, t));
-  const r = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 3))));
-  const g = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 2))));
-  const b = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 1))));
-  return [r, g, b];
+  const r = 255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 3)));
+  const g = 255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 2)));
+  const b = 255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 1)));
+  const k = Math.min(1, t / 0.35);                 // 0 at the floor, 1 from 35 % up
+  return [Math.round(r * k + 20 * (1 - k)), Math.round(g * k + 26 * (1 - k)), Math.round(b * k + 34 * (1 - k))];
 }
 
 function drawSpectrum(bins, centerMHz, rateHz) {
-  const W = specCanvas.width, H = specCanvas.height;
+  const { W, H } = fit(specCanvas, specCtx);
   const floor = Number($('#floor').value), range = Number($('#range').value);
   specCtx.clearRect(0, 0, W, H);
 
@@ -88,24 +126,32 @@ function drawSpectrum(bins, centerMHz, rateHz) {
   }
   specCtx.stroke();
 
-  // waterfall row
+  // waterfall row: one new row of `rowH` bitmap pixels (= 1 CSS pixel) at the top
+  fitWaterfall();
   const wfW = wfCanvas.width, wfH = wfCanvas.height;
-  if (!wfImage || wfImage.width !== wfW) wfImage = wfCtx.createImageData(wfW, 1);
+  const rowH = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  if (!wfImage || wfImage.width !== wfW || wfImage.height !== rowH) wfImage = wfCtx.createImageData(wfW, rowH);
   for (let x = 0; x < wfW; x++) {
     const i = Math.floor(x / wfW * bins.length);
     const t = (bins[i] - floor) / range;
     const [r, g, b] = heat(t);
-    wfImage.data[x * 4] = r; wfImage.data[x * 4 + 1] = g; wfImage.data[x * 4 + 2] = b; wfImage.data[x * 4 + 3] = 255;
+    for (let y = 0; y < rowH; y++) {
+      const o = (y * wfW + x) * 4;
+      wfImage.data[o] = r; wfImage.data[o + 1] = g; wfImage.data[o + 2] = b; wfImage.data[o + 3] = 255;
+    }
   }
-  const prev = wfCtx.getImageData(0, 0, wfW, wfH - 1);
-  wfCtx.putImageData(prev, 0, 1);
+  if (wfH > rowH) {
+    const prev = wfCtx.getImageData(0, 0, wfW, wfH - rowH);
+    wfCtx.putImageData(prev, 0, rowH);
+  }
   wfCtx.putImageData(wfImage, 0, 0);
 }
 
 // ---- I/Q scatter ("constellation") ----
 const iqCanvas = $('#iq'), iqCtx = iqCanvas.getContext('2d');
 function drawIq(iq) {
-  const W = iqCanvas.width, H = iqCanvas.height, cx = W / 2, cy = H / 2, s = Math.min(W, H) * 0.45;
+  const { W, H } = fit(iqCanvas, iqCtx);
+  const cx = W / 2, cy = H / 2, s = Math.min(W, H) * 0.45;
   iqCtx.fillStyle = cssVar('--panel'); iqCtx.fillRect(0, 0, W, H);
   // axes
   iqCtx.strokeStyle = cssVar('--grid'); iqCtx.lineWidth = 1;
@@ -143,6 +189,7 @@ async function loop() {
   while (running) {
     try {
       const cap = await radio.capture(settings());
+      if (!running) break;              // Disconnect landed while the capture was in flight
       drawSpectrum(cap.spectrum, cap.frequency, cap.rate);
       drawIq(cap.iq);
       stats(cap);
@@ -185,6 +232,8 @@ async function stop() {
   await new Promise(r => setTimeout(r, 60));
   if (radio) { try { await radio.disconnect(); } catch {} }
   radio = null;
+  avg = null;
+  $('#jammer').textContent = 'Jammer: off'; $('#jammer').classList.remove('on');
   setStatus('Not connected', false);
   log('Disconnected.');
 }
@@ -217,6 +266,17 @@ $('#logsend').addEventListener('click', async () => {
   if (!cmd || !radio || simulated) { if (simulated) log('(simulator: commands are not sent)'); return; }
   try { await radio._cmd(cmd); log('→ ' + cmd); } catch (e) { log('⚠ ' + e.message); }
 });
+
+// ---- doc views + firmware install ----
+const views = initViews(
+  $('#instrument'),
+  { hardware: $('#hardware'), firmware: $('#firmware'), about: $('#about') },
+  [...document.querySelectorAll('nav a[data-view]')],
+);
+initInstall({
+  installJammer: $('#fwInstallJammer'), status: $('#fwStatus'), bar: $('#fwBar'), log: $('#fwLog'), noRepl: $('#fwNoRepl'),
+  cpFile: $('#cpFile'), cpLoad: $('#cpLoad'), cpName: $('#cpName'), cpFlash: $('#cpFlash'),
+}, { releaseSerial: async () => { if (radio && !simulated) await stop(); } });
 
 // Browser capability hint
 if (!navigator.serial) {

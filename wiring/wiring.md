@@ -22,7 +22,10 @@ Runs **ESP-SDR** stock firmware (see `../firmware/VERSION.txt`).
 | USB power     | USB-C       | USB bank or laptop   | Separate from the receiver              |
 | Antenna       | u.FL        | Whip antenna         | Clip on firmly                          |
 
-Runs the CircuitPython sketch in `../firmware/jammer/code.py`.
+Runs the CircuitPython sketch in `../firmware/jammer/code.py`, installed from
+the page's Firmware tab. D2 is GPIO4 on the XIAO ESP32-C3 — a plain GPIO, not
+one of the strapping pins (D0/GPIO2, D8/GPIO8, D9/GPIO9), which must not be
+tied to ground at power-up.
 
 ## Notes
 

@@ -1,0 +1,8 @@
+fox-bench flasher
+Copyright (C) 2026 Lauren Linkous
+
+Licensed under the Apache License, Version 2.0 (see LICENSE in this directory).
+
+This component bundles esptool-js (vendor/esptool-js/), Copyright Espressif
+Systems (Shanghai) Co., Ltd., licensed under the Apache License, Version 2.0
+(vendor/esptool-js/LICENSE). https://github.com/espressif/esptool-js

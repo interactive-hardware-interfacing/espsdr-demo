@@ -53,3 +53,27 @@ either way. Simpler, one code path, same picture.
 
 Type `INFO` (or any command) in the page's serial log box to poke the firmware
 by hand.
+
+## Installing the jammer (the Firmware tab)
+
+Not part of the radio protocol — this is how the page gets `code.py` onto the
+optional jammer board. The receiver is never touched by this; it runs
+ESPARGOS's compiled firmware, flashed from their installer.
+
+Same kind of port, 115200 8N1 (the C3's USB-JTAG/serial ignores the rate).
+It is CircuitPython's raw REPL, the exchange Thonny and mpremote use:
+
+| step | page sends | expects |
+|---|---|---|
+| interrupt | `\r\x03\x03` (up to 4×, with `\r` and `\x02` fallbacks) | `>>> ` |
+| enter raw | `\r\x01` | `raw REPL; CTRL-B to exit\r\n>` |
+| exec | code in 128-byte chunks, 8 ms apart, then `\x04` | `OK` · stdout · `\x04` · stderr · `\x04` · `>` |
+| exit raw | `\r\x02` | `>>> ` |
+| soft reboot | `\x04` at the friendly prompt | boot output until `jammer ready on channel N` (15 s max) |
+
+The write is `f=open('code.py','wb')`, then one `f.write(b'…')` per 384-byte
+chunk, `f.close()`, then the board prints `os.stat` size and `binascii.crc32`
+of the file read back in 512-byte pieces. Both must match what was sent.
+
+A bare board (no REPL answers) gets CircuitPython first through `flasher/` —
+the ROM bootloader protocol, handled by esptool-js.
