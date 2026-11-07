@@ -77,3 +77,16 @@ of the file read back in 512-byte pieces. Both must match what was sent.
 
 A bare board (no REPL answers) gets CircuitPython first through `flasher/` —
 the ROM bootloader protocol, handled by esptool-js.
+
+## Jammer enable line (receiver GPIO4 → jammer D2)
+
+One wire, three meanings, decoded by `firmware/jammer/code.py`:
+
+| line | meaning |
+|---|---|
+| high | transmit on the current channel |
+| low for more than 300 ms | off; the next high parks it back on `CHANNEL` (6) |
+| low for less than 300 ms, then high | step to the next entry in `SWEEP_CHANNELS` (1, 3, 5, 6, 7, 9, 11, 13) |
+
+The page's **Sweep** box sends one 30 ms low pulse per second (`GPIO 4 Z`,
+wait, `GPIO 4 1`). The simulator models the same rule.

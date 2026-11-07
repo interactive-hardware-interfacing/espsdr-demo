@@ -16,6 +16,8 @@ function gaussian() { // Box–Muller
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+const SIM_SWEEP = [1, 3, 5, 6, 7, 9, 11, 13];
+
 export class SimSdr {
   constructor() {
     this.family = 'C3'; this.deviceName = 'ESP32-C3 (simulated)';
@@ -23,6 +25,7 @@ export class SimSdr {
     this.gainMin = 0; this.gainMax = 60; this.gainStep = 1; this.sampleBits = [8, 10];
     this.hasGain = true; this.hasHwAgc = true; this.hasGpio = true;
     this.gpioPins = [{ pin: 4, state: 'Z' }];
+    this._sweepI = -1; this._lowSince = null;
     this.frequency = 2442;
     this.onLog = () => {};
   }
@@ -34,7 +37,21 @@ export class SimSdr {
   async disconnect() {}
   async tune(f) { this.frequency = f; }
   async setGain() { return { mode: 'HARDWARE', index: null }; }
-  async setGpio(pin, state) { const e = this.gpioPins.find(p => p.pin === pin); if (e) e.state = state; }
+  async setGpio(pin, state) {
+    const e = this.gpioPins.find(p => p.pin === pin); if (!e) return;
+    // Model the jammer firmware's single-wire protocol: a short low pulse while
+    // on steps the sweep; a long low (> 300 ms) is a real off and resets it.
+    if (pin === 4) {
+      const now = performance.now();
+      if (state === '1' && e.state !== '1') {
+        if (this._lowSince != null && now - this._lowSince < 300) this._sweepI = (this._sweepI + 1) % SIM_SWEEP.length;
+        else this._sweepI = -1;
+        this._lowSince = null;
+      } else if (state !== '1' && e.state === '1') this._lowSince = now;
+    }
+    e.state = state;
+  }
+  jammerChannel() { return this._sweepI >= 0 ? SIM_SWEEP[this._sweepI] : 6; }
 
   _jammerOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
 
@@ -71,8 +88,8 @@ export class SimSdr {
     // A couple of BLE advertising blips near the edges
     for (const ble of [2402, 2426, 2480]) addSignal(ble - f0, 0.03 * (Math.random() > 0.4 ? 1 : 0), 1, 'ble');
 
-    // The jammer node (GPIO4 high) parks a strong carrier ~3 MHz above center.
-    if (this._jammerOn()) addSignal(3, 0.5, 0.5, 'jammer');
+    // The jammer node (GPIO4 high) parks a strong carrier ~3 MHz above its channel centre.
+    if (this._jammerOn()) addSignal(2407 + 5 * this.jammerChannel() + 3 - f0, 0.5, 0.5, 'jammer');
 
     // Scale down if anything clipped
     let peak = 0; for (let j = 0; j < iq.length; j++) peak = Math.max(peak, Math.abs(iq[j]));

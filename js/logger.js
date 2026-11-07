@@ -36,20 +36,32 @@ export class CaptureLogger {
     this.specRows = [];       // spectrum rows (strings)
     this.specHeader = null;   // bin frequencies; set from the first capture
     this.iqFiles = [];        // {name, bytes}
+    this.marks = [];          // {t, iso, capture, label}
     this.count = 0;
     this.bytes = 0;
     this.full = false;
     this.opts = { summary: true, spectrum: false, iq: false, iqEvery: 1 };
+    this._t0v = null;
   }
 
   start(opts) {
+    const keep = this.opts;
     this.reset();
-    Object.assign(this.opts, opts || {});
+    this.opts = Object.assign(keep, opts || {});
     this.recording = true;
     this.startedAt = new Date();
+    this._t0v = performance.now();
     this.onChange(this);
   }
   stop() { this.recording = false; this.onChange(this); }
+  /** A labelled event at the current capture. Starts a recording if none is running. */
+  mark(label) {
+    if (!this.recording && !this.full) this.start();
+    const m = { t: Math.max(0, (performance.now() - this._t0()) / 1000), iso: new Date().toISOString(), capture: this.count, label: label || `mark ${this.marks.length + 1}` };
+    this.marks.push(m); this.bytes += 40 + m.label.length;
+    this.onChange(this);
+    return m;
+  }
 
   /** Called once per capture from the main loop. Cheap when not recording. */
   push(cap, extra = {}) {
@@ -107,6 +119,7 @@ files:
   spectrum.csv  one row per capture, one column per FFT bin, dBFS; header row = bin centre MHz
                 (a new header row appears whenever the tuning or FFT size changed)
   iq_NNNNN.npy  raw I/Q of capture NNNNN, numpy float32 array of shape (n, 2), scaled to +-1
+  marks.csv     labelled events: t_s, iso_time, capture (index into the other files), label
 
 python:
   import numpy as np, pandas as pd
@@ -114,6 +127,7 @@ python:
   iq = np.load('iq_00000.npy'); z = iq[:,0] + 1j*iq[:,1]
 `;
     files.push({ name: 'README.txt', bytes: enc.encode(readme) });
+    files.push({ name: 'marks.csv', bytes: enc.encode('t_s,iso_time,capture,label\n' + this.marks.map(m => `${m.t.toFixed(3)},${m.iso},${m.capture},${/[",\n]/.test(m.label) ? '"' + m.label.replace(/"/g, '""') + '"' : m.label}\n`).join('')) });
     if (this.opts.summary) {
       const hdr = 'capture,t_s,iso_time,center_mhz,rate_hz,fft,bits,gain_mode,gain_index,peak_mhz,peak_dbfs,capture_us,retries,jammer\n';
       files.push({ name: 'summary.csv', bytes: enc.encode(hdr + this.rows.join('')) });
@@ -175,3 +189,61 @@ function zipStore(files) {
 }
 
 export function fmtBytes(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' kB' : (b / 1048576).toFixed(1) + ' MB'; }
+
+// ---- reading a log back (STORE-only zip, the kind this file writes) ----
+/** @returns {Map<string, Uint8Array>} name → bytes */
+export function unzipStore(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), out = new Map(), dec = new TextDecoder();
+  let p = 0;
+  while (p + 30 <= u8.length && dv.getUint32(p, true) === 0x04034b50) {
+    const method = dv.getUint16(p + 8, true), size = dv.getUint32(p + 18, true);
+    const nlen = dv.getUint16(p + 26, true), xlen = dv.getUint16(p + 28, true);
+    const name = dec.decode(u8.subarray(p + 30, p + 30 + nlen));
+    const start = p + 30 + nlen + xlen;
+    if (method !== 0) throw new Error(`${name}: compressed entries are not supported (this reader only handles the zips this page writes)`);
+    out.set(name, u8.subarray(start, start + size));
+    p = start + size;
+  }
+  if (!out.size) throw new Error('not a zip this page can read');
+  return out;
+}
+
+/** Parse a NumPy .npy of float32 shape (n, 2) → Float32Array of interleaved I,Q. */
+export function readNpy(bytes) {
+  if (bytes[0] !== 0x93 || String.fromCharCode(...bytes.subarray(1, 6)) !== 'NUMPY') throw new Error('not a .npy file');
+  const major = bytes[6];
+  const hlen = major === 1 ? bytes[8] | (bytes[9] << 8) : new DataView(bytes.buffer, bytes.byteOffset).getUint32(8, true);
+  const hstart = major === 1 ? 10 : 12;
+  const header = new TextDecoder().decode(bytes.subarray(hstart, hstart + hlen));
+  if (!/'descr':\s*'<f4'/.test(header)) throw new Error('.npy is not little-endian float32');
+  const data = bytes.subarray(hstart + hlen);
+  const n = data.byteLength >> 2;
+  const f = new Float32Array(n);
+  // the data may not be 4-byte aligned inside the zip buffer; copy via DataView
+  const dv = new DataView(data.buffer, data.byteOffset, n * 4);
+  for (let i = 0; i < n; i++) f[i] = dv.getFloat32(i * 4, true);
+  return f;
+}
+
+/** Parse a log zip into frames the page can replay. */
+export function parseLog(buf) {
+  const files = unzipStore(buf), dec = new TextDecoder();
+  const text = n => files.has(n) ? dec.decode(files.get(n)) : null;
+  const csv = s => s ? s.trim().split('\n').map(l => l.split(',')) : null;
+  const summary = csv(text('summary.csv')), spectrum = csv(text('spectrum.csv')), marks = csv(text('marks.csv'));
+  if (!spectrum) throw new Error('this log has no spectrum.csv — record with "spectrum.csv" ticked to replay it');
+  const frames = [];
+  let bins = null;
+  for (const row of spectrum) {
+    if (row[0] === 'capture') { bins = row.slice(2).map(Number); continue; }   // header: bin centre MHz
+    if (!bins) continue;
+    frames.push({ i: Number(row[0]), t: Number(row[1]), bins, db: Float32Array.from(row.slice(2), Number) });
+  }
+  const sumBy = new Map();
+  if (summary) { const h = summary[0]; for (const r of summary.slice(1)) sumBy.set(Number(r[0]), Object.fromEntries(h.map((k, j) => [k, r[j]]))); }
+  const marksBy = new Map();
+  if (marks) for (const r of marks.slice(1)) { const c = Number(r[2]); marksBy.set(c, (marksBy.get(c) || []).concat(r.slice(3).join(','))); }
+  const iq = new Map();
+  for (const [name, bytes] of files) { const m = /^iq_(\d+)\.npy$/.exec(name); if (m) iq.set(Number(m[1]), bytes); }
+  return { frames, summary: sumBy, marks: marksBy, iq, readme: text('README.txt') || '' };
+}

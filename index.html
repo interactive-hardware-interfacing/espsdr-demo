@@ -36,26 +36,29 @@
   <button id="sim">Try without hardware</button>
   <button id="disconnect">Disconnect</button>
   <button id="jammer">Jammer: off</button>
+  <label class="inline" id="sweepwrap" title="Steps the jammer across channels once a second (needs the jammer board)"><input type="checkbox" id="sweep" disabled> Sweep</label>
   <span id="status">Not connected</span>
+  <button id="presenter" class="small" aria-pressed="false" title="Big and quiet, for the projector (P / Esc)">Presenter</button>
 </div>
 
-<div class="note" id="nowebserial" hidden>
+<div class="note" id="nowebserial" data-presenter="hide" hidden>
   This browser can’t open USB serial ports. Use <strong>Chrome</strong> or <strong>Edge</strong> on a laptop or desktop to connect to a board. <strong>Try without hardware</strong> works anywhere.
 </div>
 
 <div class="grid2">
-  <div class="panel">
+  <div class="panel" data-presenter="hero">
     <h2>Power spectrum</h2>
-    <canvas id="spectrum" width="620" height="180"></canvas>
+    <canvas id="spectrum" width="620" height="180" title="Click to tune here · Shift-click to place a marker (up to 2)"></canvas>
+    <div class="spechint" data-presenter="hide">click to tune · shift-click for a marker · <span id="specreadout"></span></div>
     <canvas id="waterfall" width="620" height="120"></canvas>
   </div>
-  <div class="panel">
+  <div class="panel" data-presenter="hero">
     <h2>I/Q scatter</h2>
     <canvas id="iq" width="300" height="300"></canvas>
   </div>
 </div>
 
-<div class="controls">
+<div class="controls" data-presenter="hide">
   <div>
     <label for="freq">Center frequency (MHz)</label>
     <input type="number" id="freq" value="2442" min="2100" max="2800" step="1">
@@ -81,6 +84,11 @@
     <select id="avgmode"><option value="off">Off</option><option value="short" selected>Short</option><option value="medium">Medium</option><option value="high">High</option></select>
   </div>
   <div>
+    <label for="hold">Trace</label>
+    <select id="hold"><option value="live" selected>Live</option><option value="peak">+ peak hold (decays)</option><option value="max">+ max hold (frozen)</option></select>
+    <button id="holdreset" class="small" style="margin-top:6px" disabled>Reset hold</button>
+  </div>
+  <div>
     <label class="inline"><input type="checkbox" id="agc" checked> Hardware AGC</label>
     <label for="gain">Manual gain index <span id="gainval">40</span></label>
     <input type="range" id="gain" min="0" max="60" value="40" disabled>
@@ -95,13 +103,18 @@
   <div><div class="n" id="retries">—</div><div class="k">retries</div></div>
 </div>
 
-<div class="panel logpanel">
+<div class="panel logpanel" data-presenter="hide">
   <h2>Data logging</h2>
   <div class="logrow">
     <button id="recStart" class="primary" disabled>● Record</button>
     <button id="recStop" disabled>■ Stop</button>
     <button id="recDownload" disabled>Download .zip</button>
+    <button id="replayLoad" class="small" title="Play a downloaded log back into the page, no board needed">Replay a log…</button>
+    <input type="file" id="replayFile" accept=".zip" hidden>
+    <button id="replayPause" class="small" hidden>Pause</button>
+    <button id="replayStop" class="small" hidden>Stop replay</button>
     <span id="recStatus" class="recstatus">Connect or start the simulator, then record.</span>
+    <span class="markgroup"><input id="recMarkLabel" placeholder="mark label, e.g. jammer on"><button id="recMark" class="small" disabled>Mark</button></span>
   </div>
   <div class="logopts">
     <label class="inline"><input type="checkbox" id="logSummary" checked> summary.csv <span class="hint">one row per capture: peak, gain, timing</span></label>
@@ -112,7 +125,7 @@
   </div>
 </div>
 
-<div class="termpanel">
+<div class="termpanel" data-presenter="hide">
   <div class="termbar"><span class="dots"><i></i><i></i><i></i></span><span>serial log · 115200 8N1 · ESP-SDR text protocol</span></div>
   <div id="log"></div>
   <div class="logbar">
@@ -232,6 +245,9 @@
   <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
     watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
     sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
+  <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
+    peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference;
+    press <strong>P</strong> for the projector view.</p>
 
   <h3>How it works</h3>
   <p>

@@ -62,6 +62,29 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 | `firmware/VERSION.txt` | Which ESP-SDR build the receiver was tested with. |
 | `PROTOCOL.md`, `wiring/` | The serial contract and the hookup. |
 
+## On the page
+
+- **Presenter** (or press `P`) hides the log, settings and logging panel and
+  enlarges the spectrum, waterfall and I/Q for a projector. `Esc` leaves it;
+  the choice is remembered. `?presenter` in the URL turns it on.
+- **Trace → peak hold / max hold.** Peak hold (yellow) decays about 1 dB per
+  frame; max hold (magenta) is frozen until *Reset hold*. Both draw over the
+  live trace.
+- **Click the spectrum to tune** there (rounded to 1 MHz). Hover shows the
+  frequency under the cursor. **Shift-click** places a marker (up to two) with
+  a live dB readout; shift-click a marker to remove it.
+- **Sweep** steps the jammer across channels 1→13 once a second, which draws
+  a diagonal across the waterfall. It needs the jammer board and the single
+  enable wire: the page pulses GPIO4 low for 30 ms per step and the jammer
+  firmware counts the pulses (a low longer than 300 ms is a real "off").
+- **Mark** (on the logging row) stamps a labelled event into `marks.csv` and
+  paints a magenta row with the label into the waterfall, so it scrolls with
+  the history it tags. Marking starts a recording if none is running.
+- **Replay a log…** plays a zip downloaded earlier back into the page at the
+  recorded pace — spectrum, waterfall, stats, marks, and I/Q where `.npy`
+  snapshots were kept. No board needed, so a demo can run from a good
+  recording when the room's RF is boring. Needs `spectrum.csv` in the zip.
+
 ## Logging data
 
 The **Data logging** panel records captures while connected (simulator
@@ -69,6 +92,7 @@ included) and hands them over as one `.zip`:
 
 | file | contents |
 |---|---|
+| `marks.csv` | labelled events: time, capture index, label |
 | `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, jammer on/off |
 | `spectrum.csv` | one row per capture, one column per FFT bin in dBFS; header row is the bin centre in MHz. A waterfall in a file — about 250 kB/s at 2048 bins |
 | `iq_NNNNN.npy` | raw I/Q of one capture as a NumPy `float32` array of shape `(n, 2)`, scaled to ±1. One per capture (or every 5th / 20th / 100th) |

@@ -11,7 +11,8 @@ import { EspSdr } from './radio.js';
 import { SimSdr } from './sim.js';
 import { initViews } from './views.js';
 import { initInstall } from './install.js';
-import { CaptureLogger, fmtBytes } from './logger.js';
+import { CaptureLogger, fmtBytes, parseLog, readNpy } from './logger.js';
+import { initPresenter } from './presenter.js';
 
 const $ = sel => document.querySelector(sel);
 const logEl = $('#log');
@@ -42,6 +43,10 @@ const specCanvas = $('#spectrum'), specCtx = specCanvas.getContext('2d');
 const wfCanvas = $('#waterfall'), wfCtx = wfCanvas.getContext('2d', { willReadFrequently: true });
 let wfImage = null;
 let avg = null; // trace averaging buffer
+let hold = null;   // peak/max hold buffer (dB per bin)
+let lastAxis = { lo: 2402, hi: 2482, n: 2048 };   // what the spectrum last drew, for click → MHz
+let hoverX = null;                                 // CSS px under the mouse, or null
+const markers = [];                                // [{mhz}] up to 2
 
 // Size a canvas bitmap to its on-screen size × devicePixelRatio so lines and
 // text stay crisp; drawing code then works in CSS pixels through a transform.
@@ -126,6 +131,41 @@ function drawSpectrum(bins, centerMHz, rateHz) {
     i ? specCtx.lineTo(x, y) : specCtx.moveTo(x, y);
   }
   specCtx.stroke();
+  lastAxis = { lo: loMHz, hi: hiMHz, n: bins.length };
+
+  // peak hold (decays ~1 dB/frame) or max hold (frozen), drawn thin over the live trace
+  const hm = $('#hold').value;
+  if (hm === 'live') hold = null;
+  else {
+    if (!hold || hold.length !== bins.length) hold = Float32Array.from(bins);
+    for (let i = 0; i < bins.length; i++) {
+      if (hm === 'peak') hold[i] = Math.max(bins[i], hold[i] - 1);
+      else hold[i] = Math.max(bins[i], hold[i]);
+    }
+    specCtx.strokeStyle = cssVar(hm === 'peak' ? '--yellow' : '--magenta'); specCtx.lineWidth = 1; specCtx.globalAlpha = .9;
+    specCtx.beginPath();
+    for (let i = 0; i < hold.length; i++) { const x = i / (hold.length - 1) * W, y = H - (hold[i] - floor) / range * H; i ? specCtx.lineTo(x, y) : specCtx.moveTo(x, y); }
+    specCtx.stroke(); specCtx.globalAlpha = 1;
+  }
+
+  // markers: dashed line + live dB readout at that bin
+  specCtx.font = '11px ui-monospace, monospace';
+  markers.forEach((m, k) => {
+    if (m.mhz < loMHz || m.mhz > hiMHz) return;
+    const x = (m.mhz - loMHz) / spanMHz * W, bi = Math.round((m.mhz - loMHz) / spanMHz * (bins.length - 1));
+    const db = avg[Math.max(0, Math.min(bins.length - 1, bi))];
+    specCtx.save(); specCtx.strokeStyle = cssVar('--green'); specCtx.setLineDash([4, 3]); specCtx.beginPath(); specCtx.moveTo(x, 0); specCtx.lineTo(x, H); specCtx.stroke(); specCtx.restore();
+    const label = `M${k + 1} ${m.mhz.toFixed(1)} MHz ${db.toFixed(0)} dB`;
+    specCtx.fillStyle = cssVar('--green'); specCtx.fillText(label, Math.min(x + 4, W - specCtx.measureText(label).width - 2), H - 6 - 14 * k);
+    m.db = db;
+  });
+
+  // hover cursor
+  if (hoverX != null) {
+    const mhz = loMHz + hoverX / W * spanMHz;
+    specCtx.save(); specCtx.strokeStyle = cssVar('--muted'); specCtx.globalAlpha = .7; specCtx.beginPath(); specCtx.moveTo(hoverX, 0); specCtx.lineTo(hoverX, H); specCtx.stroke(); specCtx.restore();
+    specCtx.fillStyle = cssVar('--text'); const t = `${mhz.toFixed(1)} MHz`; specCtx.fillText(t, Math.min(hoverX + 5, W - specCtx.measureText(t).width - 2), 26);
+  }
 
   // waterfall row: one new row of `rowH` bitmap pixels (= 1 CSS pixel) at the top
   fitWaterfall();
@@ -146,6 +186,20 @@ function drawSpectrum(bins, centerMHz, rateHz) {
     wfCtx.putImageData(prev, 0, rowH);
   }
   wfCtx.putImageData(wfImage, 0, 0);
+}
+
+// A mark is painted straight into the waterfall bitmap as a magenta row with
+// its label; the bitmap scrolls, so the mark scrolls with the history it tags.
+function markWaterfall(label) {
+  fitWaterfall();
+  const dpr = window.devicePixelRatio || 1, rowH = Math.max(1, Math.round(dpr));
+  wfCtx.save(); wfCtx.setTransform(1, 0, 0, 1, 0, 0);
+  wfCtx.fillStyle = cssVar('--magenta'); wfCtx.fillRect(0, 0, wfCanvas.width, rowH);
+  wfCtx.font = `${Math.round(10 * dpr)}px system-ui, sans-serif`; wfCtx.textBaseline = 'top';
+  const w = wfCtx.measureText(label).width + 6 * dpr;
+  wfCtx.fillStyle = 'rgba(7,9,12,.75)'; wfCtx.fillRect(4 * dpr, rowH + 2 * dpr, w, 13 * dpr);
+  wfCtx.fillStyle = cssVar('--magenta'); wfCtx.fillText(label, 7 * dpr, rowH + 3 * dpr);
+  wfCtx.restore();
 }
 
 // ---- I/Q scatter ("constellation") ----
@@ -213,10 +267,11 @@ logger.onChange = l => {
   $('#recStart').disabled = l.recording || !connectedNow;
   $('#recStart').classList.toggle('on', l.recording);
   $('#recStop').disabled = !l.recording;
-  $('#recDownload').disabled = l.count === 0;
+  $('#recDownload').disabled = l.count === 0 && l.marks.length === 0;
+  $('#recMark').disabled = !connectedNow;
   for (const id of ['logSummary', 'logSpectrum', 'logIq', 'logIqEvery']) $('#' + id).disabled = l.recording;
   if (l.full) { st.textContent = `Stopped at ${fmtBytes(l.bytes)} — memory cap reached. Download, then record again.`; st.className = 'recstatus full'; }
-  else if (l.recording) { st.textContent = `recording · ${l.count} captures · ${fmtBytes(l.bytes)}`; st.className = 'recstatus on'; }
+  else if (l.recording) { st.textContent = `recording · ${l.count} captures · ${l.marks.length} marks · ${fmtBytes(l.bytes)}`; st.className = 'recstatus on'; }
   else if (l.count) { st.textContent = `${l.count} captures · ${fmtBytes(l.bytes)} ready to download`; st.className = 'recstatus'; }
   else { st.textContent = 'Connect or start the simulator, then record.'; st.className = 'recstatus'; }
 };
@@ -233,6 +288,20 @@ $('#recDownload').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = lastZip; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   log(`[log] ${name} (${fmtBytes(blob.size)})`);
 });
+const doMark = () => {
+  if (!connectedNow) return;
+  if (!logger.recording) {
+    if (!$('#logSummary').checked && !$('#logSpectrum').checked && !$('#logIq').checked) $('#logSummary').checked = true;
+    logger.opts = { summary: $('#logSummary').checked, spectrum: $('#logSpectrum').checked, iq: $('#logIq').checked, iqEvery: Number($('#logIqEvery').value) };
+  }
+  const m = logger.mark($('#recMarkLabel').value.trim());
+  $('#recMarkLabel').value = '';
+  log(`[mark] ${m.t.toFixed(1)}s ${m.label}`);
+  markWaterfall(m.label);
+};
+$('#recMark').addEventListener('click', doMark);
+$('#recMarkLabel').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doMark(); } });
+initPresenter($('#presenter'));
 logger.onChange(logger);
 
 function setStatus(text, connected) {
@@ -245,9 +314,13 @@ function setStatus(text, connected) {
   $('#sim').disabled = connected;
   $('#disconnect').disabled = !connected;
   $('#jammer').disabled = !connected || !radio?.hasGpio;
+  $('#sweep').disabled = !connected || !radio?.hasGpio;
+  $('#holdreset').disabled = $('#hold').value === 'live';
+  $('#replayLoad').disabled = connected;
 }
 
 async function start(useSim) {
+  stopReplay(true);
   simulated = useSim;
   radio = useSim ? new SimSdr() : new EspSdr();
   radio.onLog = log;
@@ -268,7 +341,8 @@ async function stop() {
   await new Promise(r => setTimeout(r, 60));
   if (radio) { try { await radio.disconnect(); } catch {} }
   radio = null;
-  avg = null;
+  avg = null; hold = null;
+  sweepStop();
   $('#jammer').textContent = 'Jammer: off'; $('#jammer').classList.remove('on');
   setStatus('Not connected', false);
   log('Disconnected.');
@@ -289,6 +363,7 @@ $('#jammer').addEventListener('click', async () => {
     const on = next === '1';
     $('#jammer').textContent = on ? 'Jammer: ON' : 'Jammer: off';
     $('#jammer').classList.toggle('on', on);
+    if (!on) sweepStop();
     log(`Jammer GPIO${entry.pin} → ${next}`);
   } catch (e) { log('⚠ ' + e.message); }
 });
@@ -321,3 +396,100 @@ if (!navigator.serial) {
 
 setStatus('Not connected', false);
 log('Ready. Click "Try without hardware" for the simulator, or "Connect board" with a XIAO C3 running ESP-SDR.');
+
+// ---- trace hold ----
+$('#hold').addEventListener('change', () => { hold = null; $('#holdreset').disabled = $('#hold').value === 'live'; });
+$('#holdreset').addEventListener('click', () => { hold = null; });
+
+// ---- tune-to-click, hover readout, markers ----
+function specMHz(ev) {
+  const r = specCanvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(r.width, ev.clientX - r.left));
+  return { x, mhz: lastAxis.lo + x / r.width * (lastAxis.hi - lastAxis.lo) };
+}
+specCanvas.addEventListener('mousemove', ev => { const { x, mhz } = specMHz(ev); hoverX = x; $('#specreadout').textContent = `${mhz.toFixed(1)} MHz`; });
+specCanvas.addEventListener('mouseleave', () => { hoverX = null; $('#specreadout').textContent = ''; });
+specCanvas.addEventListener('click', ev => {
+  const { mhz } = specMHz(ev);
+  if (ev.shiftKey) {
+    // toggle a marker: clicking within 1 MHz of an existing one removes it
+    const k = markers.findIndex(m => Math.abs(m.mhz - mhz) < 1);
+    if (k >= 0) { markers.splice(k, 1); log(`marker removed`); }
+    else if (markers.length < 2) { markers.push({ mhz: Math.round(mhz * 10) / 10 }); log(`marker M${markers.length} at ${mhz.toFixed(1)} MHz`); }
+    else log('two markers already placed — shift-click one to remove it');
+    return;
+  }
+  const f = Math.round(mhz);
+  if (f === Number($('#freq').value)) return;
+  $('#freq').value = f;
+  $('#freq').dispatchEvent(new Event('change'));
+  log(`tune → ${f} MHz`);
+});
+
+// ---- jammer sweep: one short pulse on the enable line per second ----
+// The jammer firmware counts short lows (< 300 ms) while enabled as "next
+// channel"; the page drops GPIO4 for ~30 ms and raises it again. One wire.
+let sweepTimer = null;
+function sweepStop() { if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = null; log('[sweep] off'); } $('#sweep').checked = false; }
+$('#sweep').addEventListener('change', async () => {
+  if (!$('#sweep').checked) { sweepStop(); return; }
+  if (!radio?.hasGpio) { $('#sweep').checked = false; return; }
+  const entry = radio.gpioPins.find(p => p.pin === 4) || radio.gpioPins[0];
+  if (!$('#jammer').classList.contains('on')) { $('#jammer').click(); await new Promise(r => setTimeout(r, 100)); }
+  log('[sweep] stepping the jammer across channels once a second');
+  sweepTimer = setInterval(async () => {
+    if (!radio || !$('#jammer').classList.contains('on')) { sweepStop(); return; }
+    try { await radio.setGpio(entry.pin, 'Z'); await new Promise(r => setTimeout(r, 30)); await radio.setGpio(entry.pin, '1'); }
+    catch (e) { log('⚠ sweep pulse: ' + e.message); sweepStop(); }
+  }, 1000);
+});
+
+// ---- replay a downloaded log, no board needed ----
+let replay = null;   // {name, data, i, timer, paused}
+$('#replayLoad').addEventListener('click', () => $('#replayFile').click());
+$('#replayFile').addEventListener('change', async () => {
+  const f = $('#replayFile').files?.[0]; $('#replayFile').value = '';
+  if (!f) return;
+  try {
+    const data = parseLog(await f.arrayBuffer());
+    if (!data.frames.length) throw new Error('no spectrum rows in this log');
+    startReplay(f.name, data);
+  } catch (e) { log('⚠ replay: ' + e.message); }
+});
+function startReplay(name, data) {
+  stopReplay(true);
+  replay = { name, data, i: 0, paused: false, t0: performance.now() };
+  avg = null; hold = null;
+  setStatus(`replaying ${name}`, false);
+  $('#status').className = 'replay';
+  $('#connect').disabled = $('#sim').disabled = $('#replayLoad').disabled = true;
+  $('#replayPause').hidden = $('#replayStop').hidden = false; $('#replayPause').textContent = 'Pause';
+  log(`[replay] ${name}: ${data.frames.length} frames, ${data.iq.size} I/Q snapshots, ${data.marks.size} marks`);
+  replayTick();
+}
+function replayTick() {
+  if (!replay || replay.paused) return;
+  const { data } = replay;
+  if (replay.i >= data.frames.length) { replay.i = 0; replay.t0 = performance.now(); log('[replay] looping'); }
+  const fr = data.frames[replay.i];
+  const n = fr.bins.length, lo = fr.bins[0], hi = fr.bins[n - 1], centre = (lo + hi) / 2, rate = (hi - lo) * 1e6 * n / (n - 1);
+  drawSpectrum(fr.db, centre, rate);
+  const s = data.summary.get(fr.i);
+  if (s) { $('#peak').textContent = Number(s.peak_mhz).toFixed(2); $('#peakdb').textContent = Number(s.peak_dbfs).toFixed(0); $('#cap-us').textContent = s.capture_us; $('#retries').textContent = s.retries; }
+  else { let p = 0; for (let k = 1; k < fr.db.length; k++) if (fr.db[k] > fr.db[p]) p = k; $('#peak').textContent = fr.bins[p].toFixed(2); $('#peakdb').textContent = fr.db[p].toFixed(0); }
+  const iqb = data.iq.get(fr.i); if (iqb) { try { drawIq(readNpy(iqb)); } catch (e) { log('⚠ ' + e.message); } }
+  for (const m of data.marks.get(fr.i) || []) markWaterfall(m);
+  $('#fps').textContent = 'replay';
+  replay.i++;
+  // pace by the recorded timestamps; fall back to 15 fps if there is no gap
+  const next = data.frames[replay.i], dt = next ? Math.max(16, Math.min(1000, (next.t - fr.t) * 1000)) : 66;
+  replay.timer = setTimeout(replayTick, dt);
+}
+function stopReplay(silent) {
+  if (!replay) return;
+  clearTimeout(replay.timer); replay = null;
+  $('#replayPause').hidden = $('#replayStop').hidden = true;
+  if (!silent) { setStatus('Not connected', false); $('#fps').textContent = '—'; log('[replay] stopped'); }
+}
+$('#replayPause').addEventListener('click', () => { if (!replay) return; replay.paused = !replay.paused; $('#replayPause').textContent = replay.paused ? 'Resume' : 'Pause'; if (!replay.paused) replayTick(); });
+$('#replayStop').addEventListener('click', () => stopReplay(false));
