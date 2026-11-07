@@ -207,3 +207,16 @@ progress#fwBar { width: 100%; height: 6px; margin-top: 12px; accent-color: var(-
 .cpflash ol { padding-left: 20px; } .cpflash li { margin: 7px 0; }
 .fwlog { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; background: #07090c; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 10px 12px; height: 170px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: #cbd3de; }
 .fwlog .dim { color: var(--faint); } .fwlog .ok { color: var(--green); } .fwlog .warn { color: var(--yellow); } .fwlog .tx { color: var(--magenta); }
+
+/* data logging */
+.logpanel { margin-top: 16px; }
+.logrow { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.recstatus { color: var(--muted); font-family: var(--mono); font-size: 13px; flex: 1 1 220px; }
+.recstatus.on { color: var(--magenta); }
+.recstatus.on::before { content: "●"; margin-right: 6px; animation: blink 1s steps(2) infinite; }
+@keyframes blink { to { opacity: .25; } }
+.recstatus.full { color: var(--yellow); }
+.logopts { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.logopts .hint { color: var(--faint); font-size: 13px; }
+.logopts select { padding: 2px 6px; font-size: 13px; }
+#recStart.on { background: var(--magenta); border-color: var(--magenta); color: #1a0710; }

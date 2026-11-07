@@ -11,6 +11,7 @@ import { EspSdr } from './radio.js';
 import { SimSdr } from './sim.js';
 import { initViews } from './views.js';
 import { initInstall } from './install.js';
+import { CaptureLogger, fmtBytes } from './logger.js';
 
 const $ = sel => document.querySelector(sel);
 const logEl = $('#log');
@@ -193,6 +194,7 @@ async function loop() {
       drawSpectrum(cap.spectrum, cap.frequency, cap.rate);
       drawIq(cap.iq);
       stats(cap);
+      logger.push(cap, { jammer: $('#jammer').classList.contains('on') });
     } catch (e) {
       log('⚠ ' + e.message);
       if (radio.failed) { await stop(); setStatus('Disconnected: ' + e.message, false); break; }
@@ -202,7 +204,41 @@ async function loop() {
   }
 }
 
+// ---- data logging ----
+let connectedNow = false;
+const logger = new CaptureLogger();
+let lastZip = null;
+logger.onChange = l => {
+  const st = $('#recStatus');
+  $('#recStart').disabled = l.recording || !connectedNow;
+  $('#recStart').classList.toggle('on', l.recording);
+  $('#recStop').disabled = !l.recording;
+  $('#recDownload').disabled = l.count === 0;
+  for (const id of ['logSummary', 'logSpectrum', 'logIq', 'logIqEvery']) $('#' + id).disabled = l.recording;
+  if (l.full) { st.textContent = `Stopped at ${fmtBytes(l.bytes)} — memory cap reached. Download, then record again.`; st.className = 'recstatus full'; }
+  else if (l.recording) { st.textContent = `recording · ${l.count} captures · ${fmtBytes(l.bytes)}`; st.className = 'recstatus on'; }
+  else if (l.count) { st.textContent = `${l.count} captures · ${fmtBytes(l.bytes)} ready to download`; st.className = 'recstatus'; }
+  else { st.textContent = 'Connect or start the simulator, then record.'; st.className = 'recstatus'; }
+};
+$('#recStart').addEventListener('click', () => {
+  if (!$('#logSummary').checked && !$('#logSpectrum').checked && !$('#logIq').checked) { log('⚠ pick at least one thing to log'); return; }
+  logger.start({ summary: $('#logSummary').checked, spectrum: $('#logSpectrum').checked, iq: $('#logIq').checked, iqEvery: Number($('#logIqEvery').value) });
+  log(`[log] recording${simulated ? ' (simulator)' : ''}`);
+});
+$('#recStop').addEventListener('click', () => { logger.stop(); log(`[log] stopped: ${logger.count} captures, ${fmtBytes(logger.bytes)}`); });
+$('#recDownload').addEventListener('click', () => {
+  const { blob, name } = logger.toZip({ source: simulated ? 'simulator' : 'board', identity: radio?.identity || '' });
+  if (lastZip) URL.revokeObjectURL(lastZip);
+  lastZip = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = lastZip; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  log(`[log] ${name} (${fmtBytes(blob.size)})`);
+});
+logger.onChange(logger);
+
 function setStatus(text, connected) {
+  connectedNow = connected;
+  if (!connected && logger.recording) logger.stop();
+  logger.onChange(logger);
   $('#status').textContent = text;
   $('#status').className = connected ? 'ok' : '';
   $('#connect').disabled = connected;

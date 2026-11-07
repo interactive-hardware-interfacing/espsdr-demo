@@ -62,6 +62,27 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 | `firmware/VERSION.txt` | Which ESP-SDR build the receiver was tested with. |
 | `PROTOCOL.md`, `wiring/` | The serial contract and the hookup. |
 
+## Logging data
+
+The **Data logging** panel records captures while connected (simulator
+included) and hands them over as one `.zip`:
+
+| file | contents |
+|---|---|
+| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, jammer on/off |
+| `spectrum.csv` | one row per capture, one column per FFT bin in dBFS; header row is the bin centre in MHz. A waterfall in a file — about 250 kB/s at 2048 bins |
+| `iq_NNNNN.npy` | raw I/Q of one capture as a NumPy `float32` array of shape `(n, 2)`, scaled to ±1. One per capture (or every 5th / 20th / 100th) |
+
+Nothing touches disk until you click **Download**; the page stops recording
+by itself at 200 MB. In Python:
+
+```python
+import numpy as np, pandas as pd
+s  = pd.read_csv('summary.csv')
+sp = pd.read_csv('spectrum.csv')          # sp.iloc[:, 2:] is the waterfall
+iq = np.load('iq_00000.npy'); z = iq[:, 0] + 1j * iq[:, 1]
+```
+
 ## Run locally
 
 ```
