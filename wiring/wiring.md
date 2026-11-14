@@ -9,11 +9,11 @@ This is the source of truth for the hardware/wiring tables on the page.
 |-----------------|-------------|--------------------|--------------------------------------------------|
 | USB data + power| USB-C       | Laptop             | The only required connection                     |
 | Antenna         | u.FL        | Whip antenna       | Clip on firmly — the only antenna the C3 has     |
-| Jammer enable   | GPIO4       | Jammer input (D2)  | Optional; only if using the jammer node          |
+| Beacon enable   | GPIO4       | Beacon input (D2)  | Optional; only if using the beacon node          |
 
 Runs **ESP-SDR** stock firmware (see `../firmware/VERSION.txt`).
 
-## Jammer node (optional)
+## Beacon node (optional)
 
 | Signal        | XIAO C3 pin | Goes to              | Note                                    |
 |---------------|-------------|----------------------|-----------------------------------------|
@@ -22,14 +22,14 @@ Runs **ESP-SDR** stock firmware (see `../firmware/VERSION.txt`).
 | USB power     | USB-C       | USB bank or laptop   | Separate from the receiver              |
 | Antenna       | u.FL        | Whip antenna         | Clip on firmly                          |
 
-Runs the CircuitPython sketch in `../firmware/jammer/code.py`, installed from
+Runs the CircuitPython sketch in `../firmware/beacon/code.py`, installed from
 the page's Firmware tab. D2 is GPIO4 on the XIAO ESP32-C3 — a plain GPIO, not
 one of the strapping pins (D0/GPIO2, D8/GPIO8, D9/GPIO9), which must not be
 tied to ground at power-up.
 
 ## Notes
 
-- Only the receiver talks to the browser. The jammer is independent.
+- Only the receiver talks to the browser. The beacon is independent.
 - No level shifting needed here: both boards are 3.3 V logic, and GPIO4↔D2 is
   3.3 V on both ends.
-- Without the jammer, the demo runs on the room's ambient Wi-Fi/BLE instead.
+- Without the beacon, the demo runs on the room's ambient Wi-Fi/BLE instead.

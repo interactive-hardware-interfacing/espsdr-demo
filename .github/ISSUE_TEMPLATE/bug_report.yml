@@ -16,7 +16,7 @@ body:
         - Web page (live site)
         - Web page (local copy)
         - ESP-SDR receiver firmware (upstream, ESPARGOS)
-        - Jammer firmware (`firmware/jammer/code.py`)
+        - Beacon firmware (`firmware/beacon/code.py`)
         - Wiring
         - Docs / README / PROTOCOL.md
         - Deploy (GitHub Pages)
@@ -45,10 +45,10 @@ body:
     id: hardware
     attributes:
       label: Was hardware connected?
-      description: This demo uses a XIAO ESP32-C3 running ESPARGOS ESP-SDR firmware (optionally a second C3 as the jammer).
+      description: This demo uses a XIAO ESP32-C3 running ESPARGOS ESP-SDR firmware (optionally a second C3 as the beacon).
       options:
         - Yes — receiver board
-        - Yes — receiver + jammer
+        - Yes — receiver + beacon
         - No — Try without hardware (simulator)
         - Not sure
     validations:

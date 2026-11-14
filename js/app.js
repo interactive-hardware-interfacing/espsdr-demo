@@ -15,7 +15,7 @@
  *   stats.js      numeric readouts
  *   logging.js    Data logging panel (Record / Mark / Download)
  *   replay.js     Replay a log…
- *   jammer.js     Jammer button + Sweep (receiver GPIO4)
+ *   beacon.js     Beacon button + Sweep (receiver GPIO4)
  */
 
 import { EspSdr } from './radio.js';
@@ -32,7 +32,7 @@ import { OccupancyView } from './ui/occupancy.js';
 import { Stats } from './ui/stats.js';
 import { initLogging } from './ui/logging.js';
 import { initReplay } from './ui/replay.js';
-import { initJammer } from './ui/jammer.js';
+import { initBeacon } from './ui/beacon.js';
 
 const log = makeLog($('#log'));
 
@@ -60,6 +60,7 @@ const display = () => ({
 const spectrum = new SpectrumView($('#spectrum'), {
   display, log,
   onHover: t => { $('#specreadout').textContent = t; },
+  onMarkers: t => { $('#markerreadout').textContent = t; },
   onTune: mhz => {
     const f = Math.round(mhz);
     if (f === Number($('#freq').value)) return;
@@ -88,7 +89,7 @@ function render({ bins, center, rate, iq }) {
 }
 
 // ---- panels ----
-const jammer = initJammer({ log, session });
+const beacon = initBeacon({ log, session });
 const logging = initLogging({ log, session, markWaterfall: l => waterfall.mark(l) });
 const { logger } = logging;
 const replay = initReplay({
@@ -108,7 +109,7 @@ function setStatus(text, connected) {
   $('#connect').disabled = connected;
   $('#sim').disabled = connected;
   $('#disconnect').disabled = !connected;
-  jammer.refresh(connected);
+  beacon.refresh(connected);
   $('#holdreset').disabled = $('#hold').value === 'live';
   $('#replayLoad').disabled = connected;
 }
@@ -122,7 +123,7 @@ async function loop() {
       if (!session.running) break;              // Disconnect landed while the capture was in flight
       render({ bins: cap.spectrum, center: cap.frequency, rate: cap.rate, iq: cap.iq });
       stats.update(cap);
-      logger.push(cap, { jammer: jammer.isOn() });
+      logger.push(cap, { beacon: beacon.isOn() });
     } catch (e) {
       log('⚠ ' + e.message);
       if (radio.failed) { await stop(); setStatus('Disconnected: ' + e.message, false); break; }
@@ -174,7 +175,7 @@ async function stop() {
   session.radio = null;
   spectrum.reset();
   occupancy.reset();
-  jammer.reset();
+  beacon.reset();
   setStatus('Not connected', false);
   log('Disconnected.');
 }
@@ -206,7 +207,7 @@ initViews(
   [...document.querySelectorAll('nav a[data-view]')],
 );
 initInstall({
-  installJammer: $('#fwInstallJammer'), status: $('#fwStatus'), bar: $('#fwBar'), log: $('#fwLog'), noRepl: $('#fwNoRepl'),
+  installBeacon: $('#fwInstallBeacon'), status: $('#fwStatus'), bar: $('#fwBar'), log: $('#fwLog'), noRepl: $('#fwNoRepl'),
   cpFile: $('#cpFile'), cpLoad: $('#cpLoad'), cpName: $('#cpName'), cpFlash: $('#cpFlash'),
 }, { releaseSerial: async () => { if (session.radio && !session.simulated) await stop(); } });
 

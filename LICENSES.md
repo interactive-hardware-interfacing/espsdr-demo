@@ -2,7 +2,7 @@
 
 | What | Where | Licence | Text |
 |---|---|---|---|
-| The demo: page, scripts, jammer firmware, docs | everything not listed below | **GPL-3.0-or-later** | `LICENSE` |
+| The demo: page, scripts, beacon firmware, docs | everything not listed below | **GPL-3.0-or-later** | `LICENSE` |
 | **Flasher**: CircuitPython flashing from the page | `flasher/` | **Apache-2.0** | `flasher/LICENSE`, `flasher/NOTICE` |
 | esptool-js (Espressif) | `flasher/vendor/esptool-js/` | Apache-2.0 | `flasher/vendor/esptool-js/LICENSE` |
 

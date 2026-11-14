@@ -31,7 +31,7 @@ body:
         - Page — serial log / connect flow
         - Protocol (PROTOCOL.md)
         - ESP-SDR receiver firmware (upstream, ESPARGOS)
-        - Jammer firmware (`firmware/jammer/code.py`)
+        - Beacon firmware (`firmware/beacon/code.py`)
         - Wiring
         - Docs
         - Other

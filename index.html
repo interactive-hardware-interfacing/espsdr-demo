@@ -35,8 +35,8 @@
   <button id="connect" class="primary">Connect board</button>
   <button id="sim">Try without hardware</button>
   <button id="disconnect">Disconnect</button>
-  <button id="jammer">Jammer: off</button>
-  <label class="inline" id="sweepwrap" title="Steps the jammer across channels once a second (needs the jammer board)"><input type="checkbox" id="sweep" disabled> Sweep</label>
+  <button id="beacon">Beacon: off</button>
+  <label class="inline" id="sweepwrap" title="Steps the beacon across channels once a second (needs the beacon board)"><input type="checkbox" id="sweep" disabled> Sweep</label>
   <span id="status">Not connected</span>
   <button id="presenter" class="small" aria-pressed="false" title="Big and quiet, for the projector (P / Esc)">Presenter</button>
 </div>
@@ -154,7 +154,7 @@
     <button id="replayPause" class="small" hidden>Pause</button>
     <button id="replayStop" class="small" hidden>Stop replay</button>
     <span id="recStatus" class="recstatus">Connect or start the simulator, then record.</span>
-    <span class="markgroup"><input id="recMarkLabel" placeholder="mark label, e.g. jammer on"><button id="recMark" class="small" disabled>Mark</button></span>
+    <span class="markgroup"><input id="recMarkLabel" placeholder="mark label, e.g. beacon on"><button id="recMark" class="small" disabled>Mark</button></span>
   </div>
   <div class="logopts">
     <label class="inline"><input type="checkbox" id="logSummary" checked> summary.csv <span class="hint">one row per capture: peak, gain, timing</span></label>
@@ -188,16 +188,17 @@
   <table>
     <tr><th>Role</th><th>Board</th><th>Extras</th><th>Power</th></tr>
     <tr><td>Receiver</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>Laptop USB-C</td></tr>
-    <tr><td>Jammer (optional)</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>USB bank / laptop</td></tr>
+    <tr><td>Beacon (optional)</td><td>XIAO ESP32-C3</td><td>u.FL antenna</td><td>USB bank / laptop</td></tr>
   </table>
-  <p class="tag">The receiver is the only board the browser talks to. The jammer is a separate node that gives
+  <p class="tag">The receiver is the only board the browser talks to. The beacon (called the <em>jammer</em> before v0.3 —
+    same board, same wiring) is a separate low-power ESP-NOW transmitter that gives
     you a guaranteed signal to point at even in an RF-quiet room; skip it and the demo still works on the
     room’s own Wi-Fi.</p>
 
   <h3>Wiring</h3>
   <div class="wiringfig">
     <!-- inline copy of wiring/wiring.svg so it themes with the page -->
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12" role="img" aria-label="Laptop connected by USB-C to a XIAO ESP32-C3 receiver running ESP-SDR firmware with a u.FL antenna. An optional second XIAO ESP32-C3 jammer node with its own antenna and USB power; an optional GPIO4 enable wire from the receiver to the jammer's D2, with grounds tied together.">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" font-family="system-ui, sans-serif" font-size="12" role="img" aria-label="Laptop connected by USB-C to a XIAO ESP32-C3 receiver running ESP-SDR firmware with a u.FL antenna. An optional second XIAO ESP32-C3 beacon node with its own antenna and USB power; an optional GPIO4 enable wire from the receiver to the beacon's D2, with grounds tied together.">
       <style>
         .board { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
         .lbl { fill: var(--ink); } .mut { fill: var(--muted); }
@@ -219,7 +220,7 @@
       <text x="270" y="92" class="mut" font-size="10">antenna (u.FL)</text>
       <rect x="420" y="120" width="130" height="80" rx="6" class="board"/>
       <text x="485" y="145" text-anchor="middle" class="lbl" font-weight="600">XIAO ESP32-C3</text>
-      <text x="485" y="160" text-anchor="middle" class="mut" font-size="10">JAMMER (optional)</text>
+      <text x="485" y="160" text-anchor="middle" class="mut" font-size="10">BEACON (optional)</text>
       <text x="485" y="174" text-anchor="middle" class="mut" font-size="10">CircuitPython</text>
       <circle cx="485" cy="120" r="4" class="pad"/>
       <path d="M485 120 V 95 h 30" class="ant"/>
@@ -238,10 +239,10 @@
     <tr><th>Signal</th><th>Receiver pin</th><th>Goes to</th><th>Note</th></tr>
     <tr><td>USB data + power</td><td>USB-C</td><td>Laptop</td><td>The only required connection</td></tr>
     <tr><td>Antenna</td><td>u.FL</td><td>Whip antenna</td><td>Clip it on firmly — it’s the only antenna the C3 has</td></tr>
-    <tr><td>Jammer enable</td><td>GPIO4</td><td>Jammer D2</td><td>Optional; share GND between the two boards</td></tr>
+    <tr><td>Beacon enable</td><td>GPIO4</td><td>Beacon D2</td><td>Optional; share GND between the two boards</td></tr>
   </table>
   <table>
-    <tr><th>Signal</th><th>Jammer pin</th><th>Goes to</th><th>Note</th></tr>
+    <tr><th>Signal</th><th>Beacon pin</th><th>Goes to</th><th>Note</th></tr>
     <tr><td>Enable in</td><td>D2 (GPIO4)</td><td>Receiver GPIO4</td><td>Pull-down; high = transmit. Skip it and set <code>ALWAYS_ON = True</code> in <code>code.py</code></td></tr>
     <tr><td>GND</td><td>GND</td><td>Receiver GND</td><td>Only needed with the enable wire</td></tr>
     <tr><td>USB power</td><td>USB-C</td><td>USB bank or laptop</td><td>Separate from the receiver</td></tr>
@@ -250,9 +251,9 @@
 
   <h3>Parts</h3>
   <ul>
-    <li>Seeed XIAO ESP32-C3 — one for the receiver, a second for the optional jammer — with the u.FL antenna that ships with it.</li>
-    <li>USB-C data cable (not charge-only) for the receiver; any USB-C power for the jammer.</li>
-    <li>Optional: two jumper wires (GPIO4 → D2, GND → GND) so the page’s Jammer button can switch the jammer on and off.</li>
+    <li>Seeed XIAO ESP32-C3 — one for the receiver, a second for the optional beacon — with the u.FL antenna that ships with it.</li>
+    <li>USB-C data cable (not charge-only) for the receiver; any USB-C power for the beacon.</li>
+    <li>Optional: two jumper wires (GPIO4 → D2, GND → GND) so the page’s Beacon button can switch the beacon on and off.</li>
   </ul>
 
   <h3>Things that bite</h3>
@@ -283,8 +284,8 @@
     is made of). It’s a real software-defined radio built from a $5 board.
   </p>
   <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
-    watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
-    sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
+    watch the hump grow when someone opens a video. Then hit <strong>Beacon</strong> and watch a
+    sharp spike appear and the waterfall light up where the beacon node is transmitting.</p>
   <p><strong>Zoom in:</strong> set <em>Span</em> to 16 MHz and centre on 2437. Each FFT bin gets five times narrower (watch
     <em>kHz / bin</em>), so a Wi-Fi hump shows its shape instead of a blur. Then narrow the <em>Analog filter</em> at 80 MHz span
     and watch the band edges sink — that is the filter in front of the ADC.</p>
@@ -293,13 +294,13 @@
     ones that dodge the busiest Wi-Fi.</p>
   <p><strong>Packets in time:</strong> the <em>Time domain</em> panel plots one capture sample by sample. Wi-Fi and
     BLE packets show up as the envelope stepping up and back down; <em>on air</em> says how much of the burst had
-    something in it. Hold a phone streaming video near the antenna and watch it climb. Turn the jammer on, untick
+    something in it. Hold a phone streaming video near the antenna and watch it climb. Turn the beacon on, untick
     <em>Hardware AGC</em> and raise the manual gain until the readout reports <em>clipping</em>: the samples hit full
     scale, the scatter turns into a square and the spectrum sprouts junk that isn’t on the air.</p>
   <p><strong>Who’s busy?</strong> <em>Channel occupancy</em> counts, for each channel, how often it was more than
     10 dB above the floor in recent captures. Compare 1, 6 and 11 (neighbours overlap, so they always read alike), then
     tick <em>persistence</em> under <em>Trace</em> to see rare bursts the averaged trace smooths away.</p>
-  <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
+  <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the beacon draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference, the total power between them and the signal-to-noise ratio
     over that band;
     press <strong>P</strong> for the projector view.</p>
@@ -324,9 +325,9 @@
     <tr><td><code>index.html</code>, <code>css/</code>, <code>js/app.js</code></td><td>This page. No build step, no framework. <code>app.js</code> is the glue; each view and panel is its own module in <code>js/ui/</code>.</td></tr>
     <tr><td><code>js/logger.js</code></td><td>The Data logging panel: CSV summary, per-bin spectrum, raw I/Q as <code>.npy</code>, zipped in the browser.</td></tr>
     <tr><td><code>js/radio.js</code></td><td>Web Serial client for ESP-SDR: INFO, SET, CAP16 bursts, the FFT. Adapted from ESPARGOS’s esp-web-sdr.</td></tr>
-    <tr><td><code>js/sim.js</code></td><td>A fake radio: Wi-Fi humps, noise, and a jammer spike, for the simulator.</td></tr>
-    <tr><td><code>js/install.js</code>, <code>js/device/</code>, <code>flasher/</code></td><td>The Firmware tab: CircuitPython raw REPL for the jammer, esptool-js for a bare board.</td></tr>
-    <tr><td><code>firmware/jammer/code.py</code></td><td>The jammer node. The receiver firmware is ESPARGOS’s and is not in this repo.</td></tr>
+    <tr><td><code>js/sim.js</code></td><td>A fake radio: Wi-Fi humps, noise, and a beacon spike, for the simulator.</td></tr>
+    <tr><td><code>js/install.js</code>, <code>js/device/</code>, <code>flasher/</code></td><td>The Firmware tab: CircuitPython raw REPL for the beacon, esptool-js for a bare board.</td></tr>
+    <tr><td><code>firmware/beacon/code.py</code></td><td>The beacon node. The receiver firmware is ESPARGOS’s and is not in this repo.</td></tr>
     <tr><td><code>PROTOCOL.md</code>, <code>wiring/</code></td><td>The serial contract and the hookup.</td></tr>
   </table>
   <p class="tag">Part of <a href="https://interactive-hardware-interfacing.github.io/">Interactive Hardware Interfacing</a>.
@@ -337,7 +338,7 @@
 <section class="view" id="firmware" aria-label="Firmware" hidden>
   <div class="viewhead">
     <h2>Put the firmware on the boards</h2>
-    <p class="lede">The receiver takes ESPARGOS’s ESP-SDR build from their installer; the optional jammer takes a CircuitPython file from this page. Chrome or Edge.</p>
+    <p class="lede">The receiver takes ESPARGOS’s ESP-SDR build from their installer; the optional beacon takes a CircuitPython file from this page. Chrome or Edge.</p>
     <button type="button" class="small" data-back>Back to instrument</button>
   </div>
 
@@ -350,24 +351,24 @@
   </div>
   <p class="tag">The receiver runs ESP-SDR’s unmodified firmware; this repo doesn’t ship it. Flashing problems with it belong <a href="https://github.com/ESPARGOS/esp-sdr">upstream</a>.</p>
 
-  <h3>Jammer (optional) — CircuitPython</h3>
+  <h3>Beacon (optional) — CircuitPython</h3>
   <div class="steps">
     <div class="step"><b>1. Plug in</b><p>Connect the second XIAO ESP32-C3 over USB. If the instrument is connected to the receiver, this page disconnects it first.</p></div>
-    <div class="step"><b>2. Install</b><p>Click <b>Install jammer</b> and pick that board’s port. The page writes <code>firmware/jammer/code.py</code> over CircuitPython’s REPL, checks its size and CRC on the board, reboots it, and waits for its <code>jammer ready</code> line.</p></div>
-    <div class="step"><b>3. Move it</b><p>Antenna on, USB bank, a few feet from the receiver. Wire GPIO4 → D2 and GND → GND if you want the page’s <b>Jammer</b> button to switch it; otherwise set <code>ALWAYS_ON = True</code> in <code>code.py</code> before installing.</p></div>
+    <div class="step"><b>2. Install</b><p>Click <b>Install beacon</b> and pick that board’s port. The page writes <code>firmware/beacon/code.py</code> over CircuitPython’s REPL, checks its size and CRC on the board, reboots it, and waits for its <code>beacon ready</code> line.</p></div>
+    <div class="step"><b>3. Move it</b><p>Antenna on, USB bank, a few feet from the receiver. Wire GPIO4 → D2 and GND → GND if you want the page’s <b>Beacon</b> button to switch it; otherwise set <code>ALWAYS_ON = True</code> in <code>code.py</code> before installing.</p></div>
   </div>
 
   <div class="panel fwpanel">
     <div class="fwrow">
-      <button id="fwInstallJammer" class="primary">Install jammer</button>
-      <span id="fwStatus" class="fwstatus">Ready. Plug the jammer board in and click Install.</span>
+      <button id="fwInstallBeacon" class="primary">Install beacon</button>
+      <span id="fwStatus" class="fwstatus">Ready. Plug the beacon board in and click Install.</span>
     </div>
     <progress id="fwBar" max="1" value="0" hidden></progress>
     <div class="note" id="fwNoRepl" hidden>
-      <strong>No CircuitPython on that board.</strong> A XIAO ESP32-C3 fresh from the bag runs Seeed’s factory sketch, not CircuitPython. Install CircuitPython once with the button below, then come back to <b>Install jammer</b>. (The receiver board runs ESP-SDR and never needs CircuitPython.)
+      <strong>No CircuitPython on that board.</strong> A XIAO ESP32-C3 fresh from the bag runs Seeed’s factory sketch, not CircuitPython. Install CircuitPython once with the button below, then come back to <b>Install beacon</b>. (The receiver board runs ESP-SDR and never needs CircuitPython.)
     </div>
     <div class="cpflash">
-      <h3>Bare jammer board? Install CircuitPython first</h3>
+      <h3>Bare beacon board? Install CircuitPython first</h3>
       <ol>
         <li>Download the <b>.bin</b> (not the .uf2) for the XIAO ESP32-C3 from <a href="https://circuitpython.org/board/seeed_xiao_esp32c3/" target="_blank" rel="noopener">circuitpython.org</a>. The download site doesn’t let a page fetch it directly, so it’s a save-then-pick.</li>
         <li><button id="cpLoad" class="small">Choose .bin…</button> <input type="file" id="cpFile" accept=".bin" hidden> <span id="cpName" class="tag">nothing chosen</span></li>
@@ -380,9 +381,9 @@
   </div>
 
   <details>
-    <summary>Doing the jammer by hand instead</summary>
+    <summary>Doing the beacon by hand instead</summary>
     <ul>
-      <li><strong>Thonny:</strong> Tools → Options → Interpreter → <em>CircuitPython (generic)</em>, pick the port, open <code>firmware/jammer/code.py</code>, then File → Save as… → <em>CircuitPython device</em>, name it <code>code.py</code>.</li>
+      <li><strong>Thonny:</strong> Tools → Options → Interpreter → <em>CircuitPython (generic)</em>, pick the port, open <code>firmware/beacon/code.py</code>, then File → Save as… → <em>CircuitPython device</em>, name it <code>code.py</code>.</li>
       <li><strong>CircuitPython from a terminal:</strong> <code>pip install esptool</code>, then <code>esptool.py --chip esp32c3 --port COMn erase_flash</code> and <code>esptool.py --chip esp32c3 --port COMn write_flash 0x0 adafruit-circuitpython-seeed_xiao_esp32c3-en_US-&lt;version&gt;.bin</code>.</li>
       <li>The REPL exchange the page uses is written out in <a href="https://github.com/interactive-hardware-interfacing/espsdr-demo/blob/main/PROTOCOL.md">PROTOCOL.md</a>.</li>
     </ul>

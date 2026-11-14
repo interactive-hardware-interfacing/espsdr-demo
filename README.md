@@ -17,13 +17,15 @@ copies nothing from the others.
   channel markers.
 - **Waterfall** — the spectrum scrolling over time.
 - **I/Q scatter** — the raw radio samples as dots; the raw material a
-  constellation is drawn from. Turn on the jammer and watch it spread.
+  constellation is drawn from. Turn on the beacon and watch it spread.
 
 ## Hardware
 
 - 1× XIAO ESP32-C3 (receiver) + u.FL antenna — the only board the browser needs.
-- Optional: a 2nd XIAO ESP32-C3 as a "jammer" so there's always a signal to
-  point at. See [`wiring/`](wiring/) and [`firmware/jammer/`](firmware/jammer/).
+- Optional: a 2nd XIAO ESP32-C3 as a low-power "beacon" so there's always a
+  signal to point at. (Before v0.3 this was called the *jammer*; it's the same
+  board and wiring, renamed because it never jammed anything — it's a
+  classroom-level ESP-NOW transmitter in the ISM band.) See [`wiring/`](wiring/) and [`firmware/beacon/`](firmware/beacon/).
 
 The receiver runs **stock [ESP-SDR](https://github.com/ESPARGOS/esp-sdr)
 firmware** (flash it from the [browser installer](https://espargos.net/espsdr/app/flash.html));
@@ -35,14 +37,14 @@ this repo ships only the page, not the receiver firmware. See
 **Receiver:** ESPARGOS's installer, linked above. The page's **Firmware** tab
 walks through it.
 
-**Jammer (optional):** the page does it. Open the **Firmware** tab, plug in
-the second XIAO ESP32-C3, click **Install jammer**, pick the port. The page
-writes `firmware/jammer/code.py` through CircuitPython's raw REPL over Web
+**Beacon (optional):** the page does it. Open the **Firmware** tab, plug in
+the second XIAO ESP32-C3, click **Install beacon**, pick the port. The page
+writes `firmware/beacon/code.py` through CircuitPython's raw REPL over Web
 Serial (the C3 has no `CIRCUITPY` drive, so this is the only USB path),
 verifies size and CRC32 on the board, reboots it, and waits for its
-`jammer ready` line.
+`beacon ready` line.
 
-A jammer board that has never run CircuitPython needs it installed once:
+A beacon board that has never run CircuitPython needs it installed once:
 download the `.bin` for the XIAO ESP32-C3 from
 [circuitpython.org](https://circuitpython.org/board/seeed_xiao_esp32c3/),
 pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
@@ -54,12 +56,12 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 | Path | What it is |
 |---|---|
 | `index.html`, `css/`, `js/app.js` | The page: instrument, plus Hardware / Firmware / About views (`js/views.js`). `app.js` is the capture loop and glue. |
-| `js/ui/` | One module per view or panel: `spectrum.js`, `waterfall.js`, `iq.js`, `stats.js`, `logging.js`, `replay.js`, `jammer.js`, plus shared helpers in `dom.js`. |
+| `js/ui/` | One module per view or panel: `spectrum.js`, `waterfall.js`, `iq.js`, `stats.js`, `logging.js`, `replay.js`, `beacon.js`, plus shared helpers in `dom.js`. |
 | `js/radio.js` | Web Serial client for ESP-SDR and the FFT. Adapted from ESPARGOS's esp-web-sdr. |
 | `js/sim.js` | A fake radio for **Try without hardware**. |
-| `js/install.js`, `js/device/` | The Firmware tab: CircuitPython raw REPL over Web Serial (write, verify, reboot) for the jammer. |
-| `flasher/` | CircuitPython flashing for a bare jammer board (esptool-js). Apache-2.0, see `LICENSES.md`. |
-| `firmware/jammer/code.py` | The optional jammer node. |
+| `js/install.js`, `js/device/` | The Firmware tab: CircuitPython raw REPL over Web Serial (write, verify, reboot) for the beacon. |
+| `flasher/` | CircuitPython flashing for a bare beacon board (esptool-js). Apache-2.0, see `LICENSES.md`. |
+| `firmware/beacon/code.py` | The optional beacon node. |
 | `firmware/VERSION.txt` | Which ESP-SDR build the receiver was tested with. |
 | `PROTOCOL.md`, `wiring/` | The serial contract and the hookup. |
 
@@ -95,9 +97,9 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   page shades the span between them and shows Δf, ΔdB, the total power between
   them (bins summed, divided by the Hann window's 1.5-bin noise bandwidth) the
   floor in dBFS per bin (20th-percentile bin), and the SNR over that band.
-- **Sweep** steps the jammer across channels 1→13 once a second, which draws
-  a diagonal across the waterfall. It needs the jammer board and the single
-  enable wire: the page pulses GPIO4 low for 30 ms per step and the jammer
+- **Sweep** steps the beacon across channels 1→13 once a second, which draws
+  a diagonal across the waterfall. It needs the beacon board and the single
+  enable wire: the page pulses GPIO4 low for 30 ms per step and the beacon
   firmware counts the pulses (a low longer than 300 ms is a real "off").
 - **Mark** (on the logging row) stamps a labelled event into `marks.csv` and
   paints a magenta row with the label into the waterfall, so it scrolls with
@@ -115,7 +117,7 @@ included) and hands them over as one `.zip`:
 | file | contents |
 |---|---|
 | `marks.csv` | labelled events: time, capture index, label |
-| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, jammer on/off, analog filter |
+| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, beacon on/off (column was `jammer` before v0.3), analog filter |
 | `spectrum.csv` | one row per capture, one column per FFT bin in dBFS; header row is the bin centre in MHz. A waterfall in a file — about 250 kB/s at 2048 bins |
 | `iq_NNNNN.npy` | raw I/Q of one capture as a NumPy `float32` array of shape `(n, 2)`, scaled to ±1. One per capture (or every 5th / 20th / 100th) |
 

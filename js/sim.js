@@ -4,10 +4,10 @@
  * sim.js — a fake EspSdr that produces believable I/Q with no hardware.
  * Drop-in for the real client: same connect()/capture()/tune()/setGpio() shape.
  * Used by "Try without hardware" so the page works on any laptop and so the
- * demo looks the same every time (apart from the jammer toggle, which is live).
+ * demo looks the same every time (apart from the beacon toggle, which is live).
  *
  * What it models, roughly: Wi-Fi 1/6/11 and BLE advertising as bursts of
- * packets; the jammer as near-continuous ESP-NOW frames; the three C3 sample
+ * packets; the beacon as near-continuous ESP-NOW frames; the three C3 sample
  * rates; the analog filter; hardware AGC vs manual gain (with clipping); and
  * 8/10-bit quantisation. It is a teaching prop, not a channel model.
  */
@@ -46,7 +46,7 @@ export class SimSdr {
   async setBandwidth(mhz = 'auto') { this.bwSetting = mhz; return mhz; }
   async setGpio(pin, state) {
     const e = this.gpioPins.find(p => p.pin === pin); if (!e) return;
-    // Model the jammer firmware's single-wire protocol: a short low pulse while
+    // Model the beacon firmware's single-wire protocol: a short low pulse while
     // on steps the sweep; a long low (> 300 ms) is a real off and resets it.
     if (pin === 4) {
       const now = performance.now();
@@ -58,9 +58,9 @@ export class SimSdr {
     }
     e.state = state;
   }
-  jammerChannel() { return this._sweepI >= 0 ? SIM_SWEEP[this._sweepI] : 6; }
+  beaconChannel() { return this._sweepI >= 0 ? SIM_SWEEP[this._sweepI] : 6; }
 
-  _jammerOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
+  _beaconOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
 
   async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gain = 40, gainMode = 'HARDWARE', bandwidth = null } = {}) {
     if (frequency != null) this.frequency = frequency;
@@ -129,9 +129,9 @@ export class SimSdr {
     // BLE advertising on 37/38/39: now and then one packet of 80–376 µs
     for (const ble of [2402, 2426, 2480]) if (Math.random() < 0.5) addSignal(ble - f0, 0.03, 1, gate(uniform(80, 376), uniform(50, 400), 0.3), false);
 
-    // The jammer node (GPIO4 high) parks a strong carrier ~3 MHz above its
+    // The beacon node (GPIO4 high) parks a strong carrier ~3 MHz above its
     // channel centre: back-to-back ESP-NOW frames, so nearly always on.
-    if (this._jammerOn()) addSignal(2407 + 5 * this.jammerChannel() + 3 - f0, 0.5, 0.5, gate(uniform(50, 70), uniform(8, 20), 0.9), false);
+    if (this._beaconOn()) addSignal(2407 + 5 * this.beaconChannel() + 3 - f0, 0.5, 0.5, gate(uniform(50, 70), uniform(8, 20), 0.9), false);
 
     // Gain. Hardware AGC: scale the burst so its peak sits just under full
     // scale (it hides absolute level changes). Manual: a fixed scale from the

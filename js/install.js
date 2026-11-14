@@ -1,17 +1,17 @@
 'use strict';
 
 /*
- * install.js — the Firmware tab: put the jammer's code.py on a XIAO ESP32-C3
+ * install.js — the Firmware tab: put the beacon's code.py on a XIAO ESP32-C3
  * from the browser, and (for a bare board) put CircuitPython on it first.
  *
- * Only the optional jammer node runs CircuitPython. The receiver runs
+ * Only the optional beacon node runs CircuitPython. The receiver runs
  * ESPARGOS's compiled ESP-SDR firmware, flashed from their own installer; the
  * page does not touch it.
  *
  * The C3 has no CIRCUITPY drive, so "copy code.py to the board" means talking
  * to CircuitPython's raw REPL over Web Serial (js/device/). The write is
  * verified by size and CRC32 on the board, then the board is soft-rebooted and
- * we watch for the firmware's "jammer ready" line to prove it is running.
+ * we watch for the firmware's "beacon ready" line to prove it is running.
  *
  * Installing CircuitPython itself goes through flasher/ (esptool-js, loaded
  * only when that button is used). circuitpython.org does not allow a page to
@@ -21,12 +21,12 @@
 import { SerialLink, hasWebSerial } from './device/serial-link.js';
 import { ReplDevice } from './device/repl-device.js';
 
-const FIRMWARE = { jammer: 'firmware/jammer/code.py' };
-const BOOT_LINE = { jammer: /jammer ready on channel \d+/ };
+const FIRMWARE = { beacon: 'firmware/beacon/code.py' };
+const BOOT_LINE = { beacon: /(?:beacon|jammer) ready on channel \d+/ };   // "jammer" = the pre-0.3 name of the same firmware
 const EXPECT_BOARD = /xiao_esp32c3/i;
 
 /**
- * @param {object} ui   { installJammer, status, bar, log, noRepl, cpFile, cpLoad, cpName, cpFlash }
+ * @param {object} ui   { installBeacon, status, bar, log, noRepl, cpFile, cpLoad, cpName, cpFlash }
  * @param {object} opts { releaseSerial: () => Promise<void> }   closes the instrument's own port first
  */
 export function initInstall(ui, { releaseSerial = async () => {} } = {}) {
@@ -42,11 +42,11 @@ export function initInstall(ui, { releaseSerial = async () => {} } = {}) {
   const phase = (t, cls = '') => { ui.status.textContent = t; ui.status.className = 'fwstatus ' + cls; log('— ' + t, 'dim'); };
   const progress = f => { ui.bar.hidden = f == null; if (f != null) ui.bar.value = Math.max(0, Math.min(1, f)); };
   let busy = false;
-  const setBusy = b => { busy = b; ui.installJammer.disabled = b; ui.cpFlash.disabled = b || !image; ui.cpLoad.disabled = b; };
+  const setBusy = b => { busy = b; ui.installBeacon.disabled = b; ui.cpFlash.disabled = b || !image; ui.cpLoad.disabled = b; };
 
   if (!hasWebSerial()) {
     phase('This browser has no Web Serial. Use Chrome or Edge on a laptop or desktop to install firmware.', 'warn');
-    ui.installJammer.disabled = ui.cpLoad.disabled = ui.cpFlash.disabled = true;
+    ui.installBeacon.disabled = ui.cpLoad.disabled = ui.cpFlash.disabled = true;
     return;
   }
 
@@ -91,11 +91,11 @@ export function initInstall(ui, { releaseSerial = async () => {} } = {}) {
       phase('rebooting the board and watching for its ready line…');
       const boot = await dev.reboot({ until: BOOT_LINE[role] });
       if (BOOT_LINE[role].test(boot)) {
-        phase('Done. This board is the jammer. Move it to a USB bank, clip its antenna on, and use the Jammer button on the instrument (with the enable wire) or set ALWAYS_ON in code.py.', 'ok');
+        phase('Done. This board is the beacon. Move it to a USB bank, clip its antenna on, and use the Beacon button on the instrument (with the enable wire) or set ALWAYS_ON in code.py.', 'ok');
       } else if (/Traceback|Error/.test(boot)) {
         phase('code.py written and verified, but it crashed on boot. The Python error is in the log above.', 'warn');
       } else {
-        phase('code.py written and verified, but no "jammer ready" line was seen within 15 s. Check the boot output above.', 'warn');
+        phase('code.py written and verified, but no "beacon ready" line was seen within 15 s. Check the boot output above.', 'warn');
       }
     } catch (e) {
       log(e.message || String(e), 'warn');
@@ -107,7 +107,7 @@ export function initInstall(ui, { releaseSerial = async () => {} } = {}) {
       setBusy(false);
     }
   }
-  ui.installJammer.addEventListener('click', () => install('jammer'));
+  ui.installBeacon.addEventListener('click', () => install('beacon'));
 
   // ---- 2. CircuitPython itself, for a bare board -------------------------------
   let flasher = null, image = null;
