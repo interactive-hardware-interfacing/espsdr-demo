@@ -63,9 +63,18 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 | `flasher/` | CircuitPython flashing for a bare beacon board (esptool-js). Apache-2.0, see `LICENSES.md`. |
 | `firmware/beacon/code.py` | The optional beacon node. |
 | `firmware/VERSION.txt` | Which ESP-SDR build the receiver was tested with. |
+| `js/labs.js` | The guided labs' steps and questions, as data. |
+| `notebooks/analyze_log.ipynb` | Opens a downloaded log: overview, waterfall, channel occupancy, path-loss fit, one capture in time. |
 | `PROTOCOL.md`, `wiring/` | The serial contract and the hookup. |
 
 ## On the page
+
+- **Guided labs** (top of the instrument) — six short exercises: reading the
+  band, span vs. resolution, packets in time, who's busy, path loss, and
+  reading Morse off the waterfall. **Set it up** moves the controls to where a
+  step wants them; **Copy worksheet** copies the steps and questions as
+  Markdown; `?lab=<id>&step=<n>` opens a lab directly (ids: `read`, `span`,
+  `time`, `busy`, `loss`, `morse`). Content is plain data in `js/labs.js`.
 
 - **Presenter** (or press `P`) hides the log, settings and logging panel and
   enlarges the spectrum, waterfall and I/Q for a projector. `Esc` leaves it;
@@ -129,6 +138,11 @@ included) and hands them over as one `.zip`:
 
 Nothing touches disk until you click **Download**; the page stops recording
 by itself at 200 MB. In Python:
+
+Or open `notebooks/analyze_log.ipynb`, set `ZIP`, and run all cells: it
+rebuilds the waterfall, computes channel occupancy the way the page does, fits
+the path-loss runs (marks like `d=1m`, `d=3m` split them by distance) and
+plots one capture's envelope. By hand:
 
 ```python
 import numpy as np, pandas as pd

@@ -251,6 +251,18 @@ body.presenter #spectrum { height: 34vh; }
 body.presenter #waterfall { height: 22vh; }
 body.presenter .grid2 { grid-template-columns: 2fr 1fr; }
 body.presenter #iq { aspect-ratio: auto; height: calc(56vh + 6px); max-height: none; }
+/* guided labs */
+.labpanel { margin-top: 0; margin-bottom: 0; }
+.labpanel summary { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.labpanel summary .hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--faint); margin-left: 8px; }
+.labpanel[open] summary { margin-bottom: 10px; }
+.labhead { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.labhead select { font-family: var(--mono); font-size: 13px; padding: 5px 8px; }
+.labhead .hint, .labnav .hint { color: var(--faint); font-family: var(--mono); font-size: 12px; }
+.labnav { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
+#labText { margin: 12px 0 4px; max-width: 60em; }
+.labask { margin: 6px 0 0; color: var(--yellow); font-size: 15px; }
+
 /* beacon control */
 .beaconpanel { margin-top: 16px; }
 .beaconpanel .panelhead { margin-bottom: 10px; }

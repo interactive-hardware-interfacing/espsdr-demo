@@ -45,6 +45,23 @@
   This browser can’t open USB serial ports. Use <strong>Chrome</strong> or <strong>Edge</strong> on a laptop or desktop to connect to a board. <strong>Try without hardware</strong> works anywhere.
 </div>
 
+<details id="labs" class="panel labpanel" data-presenter="hide">
+  <summary>Guided labs <span class="hint">six short exercises; each step can set the instrument up for you</span></summary>
+  <div class="labhead">
+    <select id="labPick" aria-label="Lab"></select>
+    <span id="labMeta" class="hint"></span>
+    <span class="labnav">
+      <span id="labStep" class="hint"></span>
+      <button id="labPrev" class="small">‹ Back</button>
+      <button id="labSetup" class="small primary">Set it up</button>
+      <button id="labNext" class="small">Next ›</button>
+      <button id="labCopy" class="small" title="Copy this lab's steps and questions as Markdown, for a handout">Copy worksheet</button>
+    </span>
+  </div>
+  <p id="labText"></p>
+  <p id="labAsk" class="labask" hidden></p>
+</details>
+
 <div class="grid2">
   <div class="panel" data-presenter="hero">
     <h2>Power spectrum</h2>
@@ -330,6 +347,11 @@
     plots received level against transmit power.</p>
   <p><strong>Read the waterfall:</strong> type a word into <em>Morse to key</em> and hit <em>Key it</em>. At 5 WPM a dot is
     240 ms — a few waterfall rows — so the dots and dashes scroll past as short and long dashes on the beacon’s line.</p>
+  <p><strong>For a class:</strong> <em>Guided labs</em> at the top of the instrument walks through six short exercises —
+    reading the band, span vs. resolution, packets in time, who’s busy, path loss, and reading Morse off the waterfall.
+    <em>Set it up</em> puts the controls where each step wants them, <em>Copy worksheet</em> gives you the questions as
+    Markdown, and <code>?lab=span&amp;step=2</code> in the URL opens a lab at a step. Logs open in
+    <code>notebooks/analyze_log.ipynb</code>.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the beacon draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference, the total power between them and the signal-to-noise ratio
     over that band;
@@ -358,6 +380,8 @@
     <tr><td><code>js/sim.js</code></td><td>A fake radio: Wi-Fi humps, noise, and a beacon spike, for the simulator.</td></tr>
     <tr><td><code>js/install.js</code>, <code>js/device/</code>, <code>flasher/</code></td><td>The Firmware tab: CircuitPython raw REPL for the beacon, esptool-js for a bare board.</td></tr>
     <tr><td><code>firmware/beacon/code.py</code></td><td>The beacon node. The receiver firmware is ESPARGOS’s and is not in this repo.</td></tr>
+    <tr><td><code>js/labs.js</code></td><td>The guided labs, as data: steps, set-ups, questions.</td></tr>
+    <tr><td><code>notebooks/analyze_log.ipynb</code></td><td>Opens a downloaded log in Python: waterfall, occupancy, path-loss fit, one capture in time.</td></tr>
     <tr><td><code>PROTOCOL.md</code>, <code>wiring/</code></td><td>The serial contract and the hookup.</td></tr>
   </table>
   <p class="tag">Part of <a href="https://interactive-hardware-interfacing.github.io/">Interactive Hardware Interfacing</a>.

@@ -17,6 +17,7 @@
  *   replay.js     Replay a log…
  *   beacon.js     Beacon button + Sweep (receiver GPIO4)
  *   beacon-panel.js  Beacon control over the beacon's own USB port
+ *   labs-panel.js Guided labs (content in js/labs.js)
  */
 
 import { EspSdr } from './radio.js';
@@ -35,6 +36,7 @@ import { initLogging } from './ui/logging.js';
 import { initReplay } from './ui/replay.js';
 import { initBeacon } from './ui/beacon.js';
 import { initBeaconPanel } from './ui/beacon-panel.js';
+import { initLabs } from './ui/labs-panel.js';
 
 const log = makeLog($('#log'));
 
@@ -101,6 +103,7 @@ const replay = initReplay({
   onStart: () => { spectrum.reset(); occupancy.reset(); },
 });
 initPresenter($('#presenter'));
+initLabs({ log });
 logging.refresh();
 
 function setStatus(text, connected) {
