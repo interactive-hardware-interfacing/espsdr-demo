@@ -91,7 +91,10 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   three, or nothing. Channel tables are in `js/ui/bands.js`.
 - **Click the spectrum to tune** there (rounded to 1 MHz). Hover shows the
   frequency under the cursor. **Shift-click** places a marker (up to two) with
-  a live dB readout; shift-click a marker to remove it.
+  a live dB readout; shift-click a marker to remove it. With two markers the
+  page shades the span between them and shows Δf, ΔdB, the total power between
+  them (bins summed, divided by the Hann window's 1.5-bin noise bandwidth) the
+  floor in dBFS per bin (20th-percentile bin), and the SNR over that band.
 - **Sweep** steps the jammer across channels 1→13 once a second, which draws
   a diagonal across the waterfall. It needs the jammer board and the single
   enable wire: the page pulses GPIO4 low for 30 ms per step and the jammer

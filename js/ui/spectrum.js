@@ -12,6 +12,10 @@ import { heat } from './waterfall.js';
 
 const HEAT = Array.from({ length: 256 }, (_, i) => heat(i / 255));
 const PERSIST_DECAY = 0.94;   // per frame: a hit fades to ~10 % in about 40 frames
+// Equivalent noise bandwidth of the Hann window, in bins. Summing bins
+// over-counts spread-out power by this much, because neighbouring bins'
+// windows overlap; dividing by it makes "power between markers" honest.
+const HANN_ENBW = 1.5;
 
 export class SpectrumView {
   /**
@@ -21,8 +25,10 @@ export class SpectrumView {
    * @param {(mhz:number) => void} o.onTune     plain click
    * @param {(text:string) => void} o.onHover   hover readout text ('' when the mouse leaves)
    * @param {(msg:string) => void} o.log
+   * @param {(text:string) => void} [o.onMarkers]  marker-math readout ('' with fewer than two markers)
    */
-  constructor(canvas, { display, onTune, onHover, log }) {
+  constructor(canvas, { display, onTune, onHover, log, onMarkers = () => {} }) {
+    this.onMarkers = onMarkers;
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
     this.display = display; this.log = log;
     this.avg = null;                                   // trace averaging buffer
@@ -149,6 +155,25 @@ export class SpectrumView {
       for (let i = 0; i < hold.length; i++) { const x = i / (hold.length - 1) * W, y = H - (hold[i] - floor) / range * H; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
       ctx.stroke(); ctx.globalAlpha = 1;
     }
+
+    // two markers: shade between them and do the arithmetic
+    const vis = this.markers.filter(m => m.mhz >= loMHz && m.mhz <= hiMHz);
+    if (vis.length === 2) {
+      const [a, b] = vis[0].mhz < vis[1].mhz ? vis : [vis[1], vis[0]];
+      const xa = (a.mhz - loMHz) / spanMHz * W, xb = (b.mhz - loMHz) / spanMHz * W;
+      ctx.save(); ctx.fillStyle = cssVar('--green'); ctx.globalAlpha = 0.07; ctx.fillRect(xa, 0, xb - xa, H); ctx.restore();
+      const n = avg.length, ia = Math.round((a.mhz - loMHz) / spanMHz * (n - 1)), ib = Math.round((b.mhz - loMHz) / spanMHz * (n - 1));
+      let p = 0; for (let i = ia; i <= ib; i++) p += 10 ** (avg[i] / 10);
+      const sorted = Float32Array.from(avg).sort(), floorDb = sorted[Math.floor(n * 0.2)];
+      // SNR: (power − the floor's share of it) / the floor's share, same bins
+      const noiseIn = 10 ** (floorDb / 10) * (ib - ia + 1), snr = 10 * Math.log10(Math.max(p - noiseIn, 1e-12) / noiseIn);
+      const m1 = this.markers[0], m2 = this.markers[1];
+      const db1 = avg[Math.max(0, Math.min(n - 1, Math.round((m1.mhz - loMHz) / spanMHz * (n - 1))))];
+      const db2 = avg[Math.max(0, Math.min(n - 1, Math.round((m2.mhz - loMHz) / spanMHz * (n - 1))))];
+      this.onMarkers(`M2−M1: ${(m2.mhz - m1.mhz).toFixed(1)} MHz, ${(db2 - db1) >= 0 ? '+' : ''}${(db2 - db1).toFixed(1)} dB · `
+        + `power between: ${(10 * Math.log10(p / HANN_ENBW)).toFixed(1)} dBFS · floor ${floorDb.toFixed(0)} dBFS/bin · `
+        + `SNR ≈ ${snr > -30 ? snr.toFixed(1) + ' dB' : 'below the floor'}`);
+    } else this.onMarkers(this.markers.length === 2 ? 'a marker is outside the span' : '');
 
     // markers: dashed line + live dB readout at that bin
     ctx.font = '11px ui-monospace, monospace';

@@ -49,7 +49,7 @@
   <div class="panel" data-presenter="hero">
     <h2>Power spectrum</h2>
     <canvas id="spectrum" width="620" height="180" title="Click to tune here · Shift-click to place a marker (up to 2)"></canvas>
-    <div class="spechint" data-presenter="hide">click to tune · shift-click for a marker · <span id="specreadout"></span></div>
+    <div class="spechint" data-presenter="hide">click to tune · shift-click for a marker · <span id="specreadout"></span><br><span id="markerreadout" class="markermath"></span></div>
     <canvas id="waterfall" width="620" height="120"></canvas>
   </div>
   <div class="panel" data-presenter="hero">
@@ -300,7 +300,8 @@
     10 dB above the floor in recent captures. Compare 1, 6 and 11 (neighbours overlap, so they always read alike), then
     tick <em>persistence</em> under <em>Trace</em> to see rare bursts the averaged trace smooths away.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
-    peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference;
+    peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference, the total power between them and the signal-to-noise ratio
+    over that band;
     press <strong>P</strong> for the projector view.</p>
 
   <h3>How it works</h3>

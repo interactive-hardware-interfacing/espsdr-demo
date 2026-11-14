@@ -256,6 +256,7 @@ body.presenter #iq { aspect-ratio: auto; height: calc(56vh + 6px); max-height: n
 
 .spechint { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 4px; min-height: 1.3em; }
 .spechint span { color: var(--yellow); }
+.spechint .markermath { color: var(--green); }
 #spectrum { cursor: crosshair; }
 #sweepwrap { font-size: 14px; }
 #status.replay { color: var(--magenta); }
