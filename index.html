@@ -58,6 +58,20 @@
   </div>
 </div>
 
+<div class="grid2">
+  <div class="panel">
+    <div class="panelhead">
+      <h2>Time domain · one capture</h2>
+      <span class="paneltools">
+        <select id="tdmode" aria-label="Trace"><option value="env" selected>Envelope |I+jQ|</option><option value="iq">I and Q</option></select>
+        <select id="tdwin" aria-label="Window"><option value="1" selected>Whole burst</option><option value="0.25">First ¼</option><option value="0.0625">First 1⁄16</option></select>
+      </span>
+    </div>
+    <canvas id="timedomain" title="The capture's samples in time order. Packets show up as the envelope stepping up and back down."></canvas>
+    <div class="spechint" id="tdreadout"></div>
+  </div>
+</div>
+
 <div class="controls" data-presenter="hide">
   <div>
     <label for="freq">Center frequency (MHz)</label>
@@ -264,6 +278,11 @@
   <p><strong>Share the band:</strong> switch <em>Band overlay</em> to <em>All three</em>. Bluetooth LE advertises on
     2402, 2426 and 2480 MHz — the gaps around Wi-Fi 1, 6 and 11 — and Zigbee/Thread channels 15, 20, 25 and 26 are the
     ones that dodge the busiest Wi-Fi.</p>
+  <p><strong>Packets in time:</strong> the <em>Time domain</em> panel plots one capture sample by sample. Wi-Fi and
+    BLE packets show up as the envelope stepping up and back down; <em>on air</em> says how much of the burst had
+    something in it. Hold a phone streaming video near the antenna and watch it climb. Turn the jammer on, untick
+    <em>Hardware AGC</em> and raise the manual gain until the readout reports <em>clipping</em>: the samples hit full
+    scale, the scatter turns into a square and the spectrum sprouts junk that isn’t on the air.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference;
     press <strong>P</strong> for the projector view.</p>

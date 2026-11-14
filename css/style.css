@@ -202,6 +202,11 @@ body.presenter button.small { font-size: 16px; }
 #spectrum { height: 180px; }
 #waterfall { height: 120px; margin-top: 6px; image-rendering: pixelated; }
 #iq { aspect-ratio: 1 / 1; height: auto; }
+#timedomain { height: 150px; }
+.panelhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.panelhead .paneltools { display: inline-flex; gap: 6px; }
+.panelhead select { padding: 3px 8px; font-family: var(--mono); font-size: 12px; }
+.spechint.warn { color: var(--yellow); }
 button.on { background: var(--magenta); color: #1a0a12; border-color: var(--magenta); }
 button.on:hover:not(:disabled) { background: var(--magenta); border-color: var(--magenta); filter: brightness(1.1); }
 

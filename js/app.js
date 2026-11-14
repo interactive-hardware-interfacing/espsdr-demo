@@ -9,6 +9,8 @@
  *   spectrum.js   power spectrum: averaging, hold, markers, click-to-tune
  *   waterfall.js  scrolling waterfall + marks
  *   iq.js         I/Q scatter
+ *   timeview.js   one capture in time: envelope or I/Q, on-air %, clipping
+ *   bands.js      Wi-Fi / BLE / 802.15.4 channel tables + spectrum overlay
  *   stats.js      numeric readouts
  *   logging.js    Data logging panel (Record / Mark / Download)
  *   replay.js     Replay a log…
@@ -24,6 +26,7 @@ import { $, makeLog } from './ui/dom.js';
 import { SpectrumView } from './ui/spectrum.js';
 import { WaterfallView } from './ui/waterfall.js';
 import { IqView } from './ui/iq.js';
+import { TimeView } from './ui/timeview.js';
 import { Stats } from './ui/stats.js';
 import { initLogging } from './ui/logging.js';
 import { initReplay } from './ui/replay.js';
@@ -65,6 +68,9 @@ const spectrum = new SpectrumView($('#spectrum'), {
 });
 const waterfall = new WaterfallView($('#waterfall'));
 const iqView = new IqView($('#iq'));
+const timeView = new TimeView($('#timedomain'),
+  () => ({ mode: $('#tdmode').value, window: Number($('#tdwin').value) }),
+  (text, warn) => { const el = $('#tdreadout'); el.textContent = text; el.classList.toggle('warn', warn); });
 const stats = new Stats();
 
 /** Draw one frame (live capture or replayed row) into every view. */
@@ -72,7 +78,7 @@ function render({ bins, center, rate, iq }) {
   const d = display();
   spectrum.draw(bins, center, rate);
   waterfall.push(bins, d.floor, d.range);
-  if (iq) iqView.draw(iq);
+  if (iq) { iqView.draw(iq); timeView.draw(iq, rate); }
 }
 
 // ---- panels ----

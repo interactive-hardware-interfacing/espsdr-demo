@@ -5,6 +5,11 @@
  * Drop-in for the real client: same connect()/capture()/tune()/setGpio() shape.
  * Used by "Try without hardware" so the page works on any laptop and so the
  * demo looks the same every time (apart from the jammer toggle, which is live).
+ *
+ * What it models, roughly: Wi-Fi 1/6/11 and BLE advertising as bursts of
+ * packets; the jammer as near-continuous ESP-NOW frames; the three C3 sample
+ * rates; the analog filter; hardware AGC vs manual gain (with clipping); and
+ * 8/10-bit quantisation. It is a teaching prop, not a channel model.
  */
 
 import { spectrum } from './radio.js';
@@ -37,7 +42,7 @@ export class SimSdr {
   }
   async disconnect() {}
   async tune(f) { this.frequency = f; }
-  async setGain() { return { mode: 'HARDWARE', index: null }; }
+  async setGain(mode = 'HARDWARE', index = 40) { return { mode, index: mode === 'MANUAL' ? index : null }; }
   async setBandwidth(mhz = 'auto') { this.bwSetting = mhz; return mhz; }
   async setGpio(pin, state) {
     const e = this.gpioPins.find(p => p.pin === pin); if (!e) return;
@@ -63,10 +68,10 @@ export class SimSdr {
     // The analog filter: 'auto'/0 behave as the widest setting (~62 MHz on a C3).
     const bwMHz = typeof this.bwSetting === 'number' && this.bwSetting > 0 ? this.bwSetting : 62;
     const filt = dfMHz => 1 / Math.sqrt(1 + (dfMHz / (bwMHz / 2)) ** 8);   // 4th-order Butterworth-ish
-    const f0 = this.frequency, n = Math.max(nfft, 8192);
+    const f0 = this.frequency, n = Math.max(nfft, this.maxSamples);   // 16 380, like the real burst
     const iq = new Float32Array(n * 2);
     const span = rate / 1e6; // MHz across the capture
-    const binOffMHz = (df) => df; // df is already MHz offset from center
+    const perUs = rate / 1e6; // samples per microsecond
 
     // Noise floor: front-end noise that goes through the analog filter
     // (cascaded one-pole low-pass, so narrowing the filter visibly shapes the
@@ -82,47 +87,68 @@ export class SimSdr {
     const k = 0.012 * Math.SQRT2 * Math.sqrt(Math.min(1, bwMHz / span)) / Math.sqrt(pw / n || 1);
     for (let j = 0; j < 2 * n; j++) iq[j] = iq[j] * k + gaussian() * 0.003;
 
-    // Helper: add a tone cluster of given MHz offset, amplitude, and width.
-    const addSignal = (dfMHz, amp, widthMHz, kind) => {
+    // Packets: every transmitter is on in bursts, not continuously, so the
+    // time-domain view has something to show. gate() returns 0..1 per sample
+    // with short ramps; on/off lengths are in microseconds.
+    const gate = (onUs, offUs, pStartOn = 0.5) => {
+      const g = new Float32Array(n), ramp = Math.max(1, Math.round(0.4 * perUs));
+      let j = 0, on = Math.random() < pStartOn;
+      while (j < n) {
+        const len = Math.max(1, Math.round((on ? onUs() : offUs()) * perUs));
+        if (on) for (let t = 0; t < len && j + t < n; t++) g[j + t] = Math.min(1, (t + 1) / ramp, (len - t) / ramp);
+        j += len; on = !on;
+      }
+      return g;
+    };
+    const uniform = (a, b) => () => a + Math.random() * (b - a);
+    const expo = mean => () => -mean * Math.log(1 - Math.random());
+
+    // Add a cluster of tones (a crude occupied bandwidth) at an MHz offset,
+    // gated by g. Phasor recurrence instead of cos/sin per sample.
+    const addSignal = (dfMHz, amp, widthMHz, g, shaped) => {
       if (Math.abs(dfMHz) > span / 2) return;
       amp *= filt(dfMHz);
-      const wBins = Math.max(1, Math.round(widthMHz / span * 20));
+      const wBins = Math.round(widthMHz / span * 20);   // 0 = a single carrier
       for (let c = -wBins; c <= wBins; c++) {
-        const cycles = (dfMHz + c * span / 40) / span; // fraction of sample rate
-        const w = 2 * Math.PI * cycles;
-        const a = amp * (kind === 'wifi' ? (1 - Math.abs(c) / (wBins + 1)) : 1) * (0.6 + 0.4 * Math.random());
-        const ph = Math.random() * 2 * Math.PI;
+        const w = 2 * Math.PI * (dfMHz + c * span / 40) / span;   // radians per sample
+        const a = amp * (shaped ? (1 - Math.abs(c) / (wBins + 1)) : 1) * (0.6 + 0.4 * Math.random());
+        const cr = Math.cos(w), ci = Math.sin(w);
+        let ph = Math.random() * 2 * Math.PI, re = Math.cos(ph), im = Math.sin(ph);
         for (let j = 0; j < n; j++) {
-          // modulate a little so it isn't a pure CW spike (except the jammer)
-          const mod = kind === 'jammer' ? 1 : (0.7 + 0.3 * Math.sin(j * 0.01 * (c + 2)));
-          iq[2 * j] += a * mod * Math.cos(w * j + ph);
-          iq[2 * j + 1] += a * mod * Math.sin(w * j + ph);
+          const v = a * g[j];
+          if (v) { iq[2 * j] += v * re; iq[2 * j + 1] += v * im; }
+          const r2 = re * cr - im * ci; im = re * ci + im * cr; re = r2;
         }
       }
     };
 
-    // Wi-Fi channels 1/6/11 at 2412/2437/2462 as ~16 MHz humps
-    for (const ch of [2412, 2437, 2462]) addSignal(ch - f0, 0.05, 16, 'wifi');
-    // A couple of BLE advertising blips near the edges
-    for (const ble of [2402, 2426, 2480]) addSignal(ble - f0, 0.03 * (Math.random() > 0.4 ? 1 : 0), 1, 'ble');
+    // Wi-Fi channels 1/6/11 at 2412/2437/2462 as ~16 MHz humps, packets of 20–150 µs
+    for (const ch of [2412, 2437, 2462]) addSignal(ch - f0, 0.05, 16, gate(uniform(20, 150), expo(90), 0.4), true);
+    // BLE advertising on 37/38/39: now and then one packet of 80–376 µs
+    for (const ble of [2402, 2426, 2480]) if (Math.random() < 0.5) addSignal(ble - f0, 0.03, 1, gate(uniform(80, 376), uniform(50, 400), 0.3), false);
 
-    // The jammer node (GPIO4 high) parks a strong carrier ~3 MHz above its channel centre.
-    if (this._jammerOn()) addSignal(2407 + 5 * this.jammerChannel() + 3 - f0, 0.5, 0.5, 'jammer');
+    // The jammer node (GPIO4 high) parks a strong carrier ~3 MHz above its
+    // channel centre: back-to-back ESP-NOW frames, so nearly always on.
+    if (this._jammerOn()) addSignal(2407 + 5 * this.jammerChannel() + 3 - f0, 0.5, 0.5, gate(uniform(50, 70), uniform(8, 20), 0.9), false);
 
-    // Scale down if anything clipped
+    // Gain. Hardware AGC: scale the burst so its peak sits just under full
+    // scale (it hides absolute level changes). Manual: a fixed scale from the
+    // gain index, 1 dB per step around 40, and anything past full scale clips.
     let peak = 0; for (let j = 0; j < iq.length; j++) peak = Math.max(peak, Math.abs(iq[j]));
-    if (peak > 0.95) { const s = 0.95 / peak; for (let j = 0; j < iq.length; j++) iq[j] *= s; }
+    const scale = gainMode === 'MANUAL' ? 10 ** ((gain - 40) / 20) : (peak > 0.9 ? 0.9 / peak : 1);
+    for (let j = 0; j < iq.length; j++) iq[j] = Math.max(-1, Math.min(1, iq[j] * scale));
 
     // Quantize to the requested bit depth so the scatter shows real lattice
+    // (8-bit tops out at 127/128, like the real CAP16 unpacking)
     const levels = bits === 8 ? 128 : 512;
-    for (let j = 0; j < iq.length; j++) iq[j] = Math.round(iq[j] * levels) / levels;
+    for (let j = 0; j < iq.length; j++) iq[j] = Math.max(-levels, Math.min(levels - 1, Math.round(iq[j] * levels))) / levels;
 
     const ps = spectrum(iq, nfft);
     let pk = 0; for (let j = 1; j < ps.length; j++) if (ps[j] > ps[pk]) pk = j;
     await new Promise(r => setTimeout(r, 25)); // feel like a real capture
     return {
       iq, spectrum: ps, fft: nfft, rate, bits, frequency: f0,
-      gain: { mode: 'HARDWARE', index: null }, bandwidth: this.bwSetting,
+      gain: { mode: gainMode, index: gainMode === 'MANUAL' ? gain : null }, bandwidth: this.bwSetting,
       peakHz: f0 * 1e6 + (pk - nfft / 2) * rate / nfft, peakDb: ps[pk],
       captureUs: Math.round(n / rate * 1e6), samples: n, retries: 0,
       elapsedMs: 25, simulated: true,

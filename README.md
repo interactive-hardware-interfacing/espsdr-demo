@@ -75,6 +75,11 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   in, and the **kHz / bin** readout shows how much finer each FFT bin gets.
   **Analog filter** sets ESP-SDR's `BANDWIDTH` (14–62 MHz on the C3); *Auto*
   leaves the calibrated filter alone.
+- **Time domain** plots one capture sample by sample — the envelope |I+jQ|
+  or I and Q — over the whole burst or its first ¼ or 1⁄16. Packets show as the
+  envelope stepping up and down. The readout gives *on air* (share of samples
+  ~10 dB above a noise estimate from the quietest samples) and flags *clipping* (samples at full
+  scale).
 - **Band overlay** draws Wi-Fi channels, Bluetooth LE (advertising 37/38/39
   shaded, data channels when zoomed in), IEEE 802.15.4 / Zigbee / Thread, all
   three, or nothing. Channel tables are in `js/ui/bands.js`.
