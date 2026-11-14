@@ -75,6 +75,9 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   in, and the **kHz / bin** readout shows how much finer each FFT bin gets.
   **Analog filter** sets ESP-SDR's `BANDWIDTH` (14–62 MHz on the C3); *Auto*
   leaves the calibrated filter alone.
+- **Band overlay** draws Wi-Fi channels, Bluetooth LE (advertising 37/38/39
+  shaded, data channels when zoomed in), IEEE 802.15.4 / Zigbee / Thread, all
+  three, or nothing. Channel tables are in `js/ui/bands.js`.
 - **Click the spectrum to tune** there (rounded to 1 MHz). Hover shows the
   frequency under the cursor. **Shift-click** places a marker (up to two) with
   a live dB readout; shift-click a marker to remove it.

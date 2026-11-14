@@ -2,17 +2,18 @@
 
 /*
  * spectrum.js — the power-spectrum plot: averaged live trace, optional
- * peak/max hold, Wi-Fi channel lines, up to two markers with live dB
+ * peak/max hold, a band overlay (Wi-Fi / BLE / 802.15.4, bands.js), up to two markers with live dB
  * readouts, a hover cursor, and click-to-tune / shift-click-for-marker.
  */
 
 import { cssVar, fit } from './dom.js';
+import { drawBands } from './bands.js';
 
 export class SpectrumView {
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {object} o
-   * @param {() => {floor:number, range:number, avgmode:string, hold:string}} o.display  current display settings
+   * @param {() => {floor:number, range:number, avgmode:string, hold:string, bands:string}} o.display  current display settings
    * @param {(mhz:number) => void} o.onTune     plain click
    * @param {(text:string) => void} o.onHover   hover readout text ('' when the mouse leaves)
    * @param {(msg:string) => void} o.log
@@ -56,7 +57,7 @@ export class SpectrumView {
   draw(bins, centerMHz, rateHz) {
     const { canvas, ctx } = this;
     const { W, H } = fit(canvas, ctx);
-    const { floor, range, avgmode, hold: hm } = this.display();
+    const { floor, range, avgmode, hold: hm, bands = 'wifi' } = this.display();
     ctx.clearRect(0, 0, W, H);
 
     // grid + channel markers
@@ -64,14 +65,18 @@ export class SpectrumView {
     ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui, sans-serif';
     const spanMHz = rateHz / 1e6;
     const loMHz = centerMHz - spanMHz / 2, hiMHz = centerMHz + spanMHz / 2;
-    for (const ch of [[2412, '1'], [2437, '6'], [2462, '11']]) {
-      if (ch[0] < loMHz || ch[0] > hiMHz) continue;
-      const x = (ch[0] - loMHz) / spanMHz * W;
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.fillText('Wi‑Fi ' + ch[1], x + 3, 12);
+
+    // frequency axis: ticks + MHz labels along the bottom, about 8 across
+    const step = [1, 2, 5, 10, 20, 50].find(s => spanMHz / s <= 9) || 50;
+    ctx.save(); ctx.fillStyle = cssVar('--faint'); ctx.font = '10px ui-monospace, monospace'; ctx.textBaseline = 'alphabetic';
+    for (let f = Math.ceil(loMHz / step) * step; f <= hiMHz; f += step) {
+      const x = (f - loMHz) / spanMHz * W;
+      ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x, H - 5); ctx.stroke();
+      const t = String(f), tw = ctx.measureText(t).width;
+      if (x - tw / 2 > 2 && x + tw / 2 < W - 2) ctx.fillText(t, x - tw / 2, H - 7);
     }
+    ctx.restore();
+    const labelsEnd = drawBands(ctx, { W, H, loMHz, hiMHz, choice: bands });
 
     // averaging
     if (avgmode === 'off' || !this.avg || this.avg.length !== bins.length) this.avg = Float32Array.from(bins);
@@ -115,7 +120,7 @@ export class SpectrumView {
       const db = avg[Math.max(0, Math.min(bins.length - 1, bi))];
       ctx.save(); ctx.strokeStyle = cssVar('--green'); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.restore();
       const label = `M${k + 1} ${m.mhz.toFixed(1)} MHz ${db.toFixed(0)} dB`;
-      ctx.fillStyle = cssVar('--green'); ctx.fillText(label, Math.min(x + 4, W - ctx.measureText(label).width - 2), H - 6 - 14 * k);
+      ctx.fillStyle = cssVar('--green'); ctx.fillText(label, Math.min(x + 4, W - ctx.measureText(label).width - 2), H - 22 - 14 * k);
       m.db = db;
     });
 
@@ -123,7 +128,7 @@ export class SpectrumView {
     if (this.hoverX != null) {
       const hx = this.hoverX, mhz = loMHz + hx / W * spanMHz;
       ctx.save(); ctx.strokeStyle = cssVar('--muted'); ctx.globalAlpha = .7; ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx, H); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = cssVar('--text'); const t = `${mhz.toFixed(1)} MHz`; ctx.fillText(t, Math.min(hx + 5, W - ctx.measureText(t).width - 2), 26);
+      ctx.fillStyle = cssVar('--text'); const t = `${mhz.toFixed(1)} MHz`; ctx.fillText(t, Math.min(hx + 5, W - ctx.measureText(t).width - 2), Math.max(26, labelsEnd + 2));
     }
   }
 }

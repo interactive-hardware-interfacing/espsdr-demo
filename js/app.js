@@ -48,7 +48,7 @@ function settings() {
 }
 const display = () => ({
   floor: Number($('#floor').value), range: Number($('#range').value),
-  avgmode: $('#avgmode').value, hold: $('#hold').value,
+  avgmode: $('#avgmode').value, hold: $('#hold').value, bands: $('#bands').value,
 });
 
 // ---- views ----
