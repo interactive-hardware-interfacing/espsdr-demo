@@ -190,7 +190,7 @@ body.presenter header h1 { font-size: 30px; margin-bottom: 4px; }
 body.presenter nav { margin-bottom: 12px; border-bottom: 0; }
 body.presenter nav a[data-view=""] { pointer-events: none; border-bottom-color: transparent; padding: 4px 0; }
 body.presenter .bar { margin-bottom: 10px; }
-body.presenter .stats .n { font-size: 56px; }
+body.presenter .stats .n { font-size: clamp(30px, 3.2vw, 56px); }
 body.presenter .stats .k { font-size: 14px; }
 body.presenter .panel h2 { font-size: 14px; }
 body.presenter [data-presenter="hero"] canvas { height: min(52vh, 560px) !important; }

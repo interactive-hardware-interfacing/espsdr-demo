@@ -15,3 +15,23 @@ Protocol doc:  https://github.com/ESPARGOS/esp-sdr/blob/main/docs/protocol.md
 >>> js/radio.js (_negotiate) and this file.
 
 Pinned/last-verified build date: ____________  (fill in when you flash the kit)
+
+v0.3.0 hardware checklist (things the simulator and CI cannot prove)
+---------------------------------------------------------------------
+Receiver (ESP-SDR on the C3):
+  [ ] LIMITS? lists rates 80000000,40000000,16000000 and bandwidth [14,62,1,0];
+      the Span and Analog filter menus fill from it on connect
+  [ ] Span 40 and 16 MS/s capture without retries; kHz / bin reads 19.5 / 7.8
+  [ ] Analog filter 20 MHz visibly drops the band edges at 80 MS/s;
+      back to Auto sends LPF AUTO (watch the serial log) and they come back
+  [ ] Time domain: Wi-Fi packets visible as envelope steps; manual gain high
+      with the beacon close reports clipping
+Beacon (CircuitPython on the second C3), after reinstalling code.py:
+  [ ] Boot line "beacon ready on channel 6"; Install beacon reports Done
+  [ ] Beacon control connects (ID BEACON 1 ...) on the beacon's port and
+      refuses the receiver's port with a clear message
+  [ ] ON/OFF, CH 1..13, PWR 2..20 work; PWR reply matches what was asked
+      (wifi.radio.tx_power may round to 0.25 dB)
+  [ ] Power steps, AGC off: ~3 dB per step on the received peak
+  [ ] Morse at 5 WPM readable on the waterfall; the enable wire still works
+      alongside the USB link
