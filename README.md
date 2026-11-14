@@ -160,6 +160,21 @@ python -m http.server 8000
 then open <http://localhost:8000/> — the ES modules won't load from `file://`.
 Web Serial needs HTTPS or localhost.
 
+## Checks
+
+`.github/workflows/check.yml` runs on every push and pull request (the Pages
+deploy is separate):
+
+| check | runs |
+|---|---|
+| page | `node tests/check_imports.mjs` — every module parses, every relative import exists, every `$('#id')` is in `index.html` |
+| simulator | `node tests/sim_test.mjs` — C3 rates and burst size, beacon channel/power, clipping vs AGC |
+| beacon firmware | `python tests/beacon_firmware_test.py` — serial commands and Morse timing, CircuitPython mocked |
+| notebook | `python tests/make_fixture_log.py` then `tests/run_notebook.py` — the notebook end to end on a synthetic log |
+
+None of them touch hardware; the hardware test is still you, a board and the
+checklist in `firmware/VERSION.txt`.
+
 ## Browser support
 
 Chrome or Edge on a laptop/desktop (Web Serial). The simulator works anywhere.

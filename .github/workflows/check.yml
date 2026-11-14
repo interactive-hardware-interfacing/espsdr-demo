@@ -1,0 +1,57 @@
+name: Checks
+
+# Runs on every push and pull request. The Pages deploy (pages.yml) is
+# separate and unchanged; this only tells you whether the page, the beacon
+# firmware and the notebook still hold together.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  page:
+    name: Page modules + simulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Modules parse, imports resolve, element ids exist
+        run: node tests/check_imports.mjs
+      - name: Simulator behaves like a C3 (rates, burst size, beacon, clipping)
+        run: node tests/sim_test.mjs
+
+  firmware:
+    name: Beacon firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: code.py compiles
+        run: python -m py_compile firmware/beacon/code.py
+      - name: Serial commands and Morse timing (CircuitPython modules mocked)
+        run: python tests/beacon_firmware_test.py
+
+  notebook:
+    name: Analysis notebook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/workflows/check.yml
+      - run: pip install numpy pandas matplotlib nbformat nbclient ipykernel
+      - run: python -m ipykernel install --user
+      - name: Run the notebook on a synthetic log
+        run: |
+          python tests/make_fixture_log.py "$RUNNER_TEMP/fixture.zip"
+          python tests/run_notebook.py notebooks/analyze_log.ipynb "$RUNNER_TEMP/fixture.zip"
