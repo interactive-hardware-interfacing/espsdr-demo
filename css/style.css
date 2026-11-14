@@ -251,6 +251,19 @@ body.presenter #spectrum { height: 34vh; }
 body.presenter #waterfall { height: 22vh; }
 body.presenter .grid2 { grid-template-columns: 2fr 1fr; }
 body.presenter #iq { aspect-ratio: auto; height: calc(56vh + 6px); max-height: none; }
+/* beacon control */
+.beaconpanel { margin-top: 16px; }
+.beaconpanel .panelhead { margin-bottom: 10px; }
+.beaconpanel .panelhead h2 { margin: 0; }
+.beaconpanel .panelhead .recstatus { flex: 0 1 auto; text-align: right; }
+.bcrow { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 8px; }
+.bcrow .field { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.bcrow .field select { padding: 4px 8px; font-family: var(--mono); font-size: 13px; }
+.bcrow .val { color: var(--yellow); min-width: 2.6em; text-align: right; }
+.bcrow #bcMorse { flex: 1 1 200px; font-family: var(--mono); font-size: 13px; }
+.bcrow #bcWpm { padding: 4px 8px; font-family: var(--mono); font-size: 13px; }
+.bcrow .hint { color: var(--faint); font-size: 13px; }
+#bcOn.on { background: var(--magenta); color: #1a0a12; border-color: var(--magenta); }
 .logrow .markgroup { display: inline-flex; gap: 6px; margin-left: auto; }
 .logrow .markgroup input { width: 180px; }
 

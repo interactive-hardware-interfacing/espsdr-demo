@@ -62,5 +62,16 @@ export function initLogging({ log, session, markWaterfall }) {
   $('#recMark').addEventListener('click', doMark);
   $('#recMarkLabel').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doMark(); } });
 
-  return { logger, refresh: () => logger.onChange(logger) };
+  return {
+    logger, refresh: () => logger.onChange(logger),
+    /** A mark from code (the beacon's power steps): same as typing a label and pressing Mark. */
+    mark(label) {
+      if (!session.connected) return;
+      if (!logger.recording && nothingTicked()) $('#logSummary').checked = true;
+      if (!logger.recording) logger.opts = opts();
+      const m = logger.mark(label);
+      log(`[mark] ${m.t.toFixed(1)}s ${m.label}`);
+      markWaterfall(m.label);
+    },
+  };
 }

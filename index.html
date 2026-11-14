@@ -143,6 +143,29 @@
   <div><div class="n" id="retries">—</div><div class="k">retries</div></div>
 </div>
 
+<div class="panel beaconpanel" data-presenter="hide">
+  <div class="panelhead">
+    <h2>Beacon control · second board over USB</h2>
+    <span id="bcStatus" class="recstatus"></span>
+  </div>
+  <div class="bcrow">
+    <button id="bcConnect" class="small" title="Opens the beacon board's own USB port (not the receiver's). In the simulator, drives the simulated beacon.">Connect beacon board</button>
+    <button id="bcOn" class="small" disabled>Transmit: off</button>
+    <label class="field">Channel <select id="bcCh" disabled></select></label>
+    <label class="field">Power <input type="range" id="bcPwr" min="2" max="20" step="1" value="20" disabled> <span id="bcPwrVal" class="val">—</span> dBm</label>
+    <label class="inline" title="Steps the beacon through Wi-Fi channels 1–13, one a second"><input type="checkbox" id="bcSweep" disabled> channel sweep</label>
+    <label class="inline" title="20 → 2 dBm in 3 dB steps, 3 s each, with a mark at every step: the path-loss lab"><input type="checkbox" id="bcSteps" disabled> power steps</label>
+  </div>
+  <div class="bcrow">
+    <input id="bcMorse" placeholder="Morse to key, e.g. CQ ESPSDR" disabled>
+    <select id="bcWpm" disabled aria-label="Morse speed"><option value="5" selected>5 WPM</option><option value="8">8 WPM</option><option value="12">12 WPM</option></select>
+    <button id="bcKey" class="small" disabled>Key it</button>
+    <button id="bcUnkey" class="small" disabled>Stop</button>
+    <span class="hint">Without a USB link the <b>Beacon</b> button and <b>Sweep</b> up top still work over the enable wire.</span>
+  </div>
+  <div class="note" id="bcHint" hidden></div>
+</div>
+
 <div class="panel logpanel" data-presenter="hide">
   <h2>Data logging</h2>
   <div class="logrow">
@@ -254,6 +277,7 @@
     <li>Seeed XIAO ESP32-C3 — one for the receiver, a second for the optional beacon — with the u.FL antenna that ships with it.</li>
     <li>USB-C data cable (not charge-only) for the receiver; any USB-C power for the beacon.</li>
     <li>Optional: two jumper wires (GPIO4 → D2, GND → GND) so the page’s Beacon button can switch the beacon on and off.</li>
+    <li>Optional instead of (or as well as) the wires: a second USB-C data cable from the beacon to the laptop, so the <b>Beacon control</b> panel can set its channel, power and Morse directly.</li>
   </ul>
 
   <h3>Things that bite</h3>
@@ -300,6 +324,12 @@
   <p><strong>Who’s busy?</strong> <em>Channel occupancy</em> counts, for each channel, how often it was more than
     10 dB above the floor in recent captures. Compare 1, 6 and 11 (neighbours overlap, so they always read alike), then
     tick <em>persistence</em> under <em>Trace</em> to see rare bursts the averaged trace smooths away.</p>
+  <p><strong>Path loss:</strong> plug the beacon in by USB too and use <em>Beacon control</em>. Untick
+    <em>Hardware AGC</em>, start a recording, tick <em>power steps</em>: the beacon walks from 20 to 2 dBm in 3 dB steps
+    and drops a mark at each. Then move it to another distance and do it again. The <em>analyze_log</em> notebook
+    plots received level against transmit power.</p>
+  <p><strong>Read the waterfall:</strong> type a word into <em>Morse to key</em> and hit <em>Key it</em>. At 5 WPM a dot is
+    240 ms — a few waterfall rows — so the dots and dashes scroll past as short and long dashes on the beacon’s line.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the beacon draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference, the total power between them and the signal-to-noise ratio
     over that band;

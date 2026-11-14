@@ -23,6 +23,53 @@ function gaussian() { // Box–Muller
 
 const SIM_SWEEP = [1, 3, 5, 6, 7, 9, 11, 13];
 
+const MORSE = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..', 0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.', '/': '-..-.', '?': '..--..', '.': '.-.-.-', ',': '--..--', '=': '-...-' };
+/** Same timing as firmware/beacon/code.py: dot 1, dash 3, gaps 1 / 3 / 7 units. */
+export function morseSchedule(text) {
+  const out = [];
+  for (const word of text.toUpperCase().split(/\s+/).filter(Boolean)) {
+    for (const ch of word) {
+      const code = MORSE[ch]; if (!code) continue;
+      for (const sym of code) out.push([true, sym === '.' ? 1 : 3], [false, 1]);
+      out[out.length - 1] = [false, 3];
+    }
+    if (out.length) out[out.length - 1] = [false, 7];
+  }
+  return out;
+}
+
+/**
+ * The beacon's USB serial control, simulated: same methods as
+ * js/device/beacon-link.js, and SimSdr reads its state when drawing the
+ * beacon's carrier (channel, power, on/off, Morse keying).
+ */
+export class SimBeacon {
+  constructor(sdr) {
+    this.sdr = sdr; this.state = { on: false, ch: 6, pwr: 19.5, wpm: 5, morse: false };
+    this.keying = null; this.onInfo = () => {}; this.onDrop = () => {};
+  }
+  async connect() { this.sdr.beacon = this; this.sdr.home = this.state.ch; return { id: 'ID BEACON 1 ch=6 pwr=19.5 on=0 (simulated)', info: 'simulated' }; }
+  async setOn(on) { this.state.on = on; if (!on) { this.keying = null; this.state.morse = false; } }
+  async setChannel(ch) { if (!(ch >= 1 && ch <= 13)) throw new Error('beacon: ERR channel 1-13'); this.state.ch = ch; this.sdr.home = ch; this.sdr._sweepI = -1; this.onInfo('beacon on channel ' + ch); }
+  async setPower(dbm) { if (!(dbm >= 2 && dbm <= 20)) throw new Error('beacon: ERR power 2-20 dBm'); this.state.pwr = Math.round(dbm * 4) / 4; return this.state.pwr; }
+  async setWpm(n) { this.state.wpm = n; if (this.keying) this.keying.t0 = performance.now(); }
+  async morse(text) {
+    const sched = morseSchedule(text || '');
+    this.keying = sched.length ? { sched, total: sched.reduce((a, [, u]) => a + u, 0), t0: performance.now() } : null;
+    this.state.morse = !!this.keying;
+  }
+  async status() { return this.state; }
+  async close() { this.state.on = false; this.keying = null; this.state.morse = false; if (this.sdr.beacon === this) this.sdr.beacon = null; }
+  /** Is the key down at time t (ms)? Without Morse: whether serial ON is set. */
+  keyed(t) {
+    if (!this.keying) return this.state.on;
+    const unit = 1200 / this.state.wpm;
+    let pos = ((t - this.keying.t0) / unit) % this.keying.total;
+    for (const [down, units] of this.keying.sched) { if (pos < units) return down; pos -= units; }
+    return false;
+  }
+}
+
 export class SimSdr {
   constructor() {
     this.family = 'C3'; this.deviceName = 'ESP32-C3 (simulated)';
@@ -32,6 +79,8 @@ export class SimSdr {
     this.hasGain = true; this.hasHwAgc = true; this.hasGpio = true;
     this.gpioPins = [{ pin: 4, state: 'Z' }];
     this._sweepI = -1; this._lowSince = null;
+    this.home = 6;            // the beacon's home channel (CH over serial changes it)
+    this.beacon = null;       // a connected SimBeacon, if any
     this.frequency = 2442;
     this.onLog = () => {};
   }
@@ -40,7 +89,7 @@ export class SimSdr {
     this.onLog('← C3SDR 6 burst 16380 (simulated)');
     return { identity: 'C3SDR 6 burst 16380', family: 'C3', device: this.deviceName, rates: this.rxRates, bandwidth: this.bwLimits, gpio: this.gpioPins, simulated: true };
   }
-  async disconnect() {}
+  async disconnect() { if (this.beacon) await this.beacon.close(); }
   async tune(f) { this.frequency = f; }
   async setGain(mode = 'HARDWARE', index = 40) { return { mode, index: mode === 'MANUAL' ? index : null }; }
   async setBandwidth(mhz = 'auto') { this.bwSetting = mhz; return mhz; }
@@ -58,9 +107,16 @@ export class SimSdr {
     }
     e.state = state;
   }
-  beaconChannel() { return this._sweepI >= 0 ? SIM_SWEEP[this._sweepI] : 6; }
+  beaconChannel() { return this._sweepI >= 0 ? SIM_SWEEP[this._sweepI] : this.home; }
 
-  _beaconOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
+  // Same rule as code.py: wire high OR serial ON, and Morse keying overrides.
+  _wireOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
+  _beaconOn(t = performance.now()) {
+    if (this.beacon?.keying) return this.beacon.keyed(t);
+    return this._wireOn() || !!this.beacon?.state.on;
+  }
+  // Carrier amplitude follows the beacon's power setting, 0.5 at ~20 dBm.
+  _beaconAmp() { return 0.5 * 10 ** (((this.beacon?.state.pwr ?? 19.5) - 19.5) / 20); }
 
   async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gain = 40, gainMode = 'HARDWARE', bandwidth = null } = {}) {
     if (frequency != null) this.frequency = frequency;
@@ -131,7 +187,7 @@ export class SimSdr {
 
     // The beacon node (GPIO4 high) parks a strong carrier ~3 MHz above its
     // channel centre: back-to-back ESP-NOW frames, so nearly always on.
-    if (this._beaconOn()) addSignal(2407 + 5 * this.beaconChannel() + 3 - f0, 0.5, 0.5, gate(uniform(50, 70), uniform(8, 20), 0.9), false);
+    if (this._beaconOn()) addSignal(2407 + 5 * this.beaconChannel() + 3 - f0, this._beaconAmp(), 0.5, gate(uniform(50, 70), uniform(8, 20), 0.9), false);
 
     // Gain. Hardware AGC: scale the burst so its peak sits just under full
     // scale (it hides absolute level changes). Manual: a fixed scale from the

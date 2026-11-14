@@ -98,3 +98,27 @@ One wire, three meanings, decoded by `firmware/beacon/code.py`:
 
 The page's **Sweep** box sends one 30 ms low pulse per second (`GPIO 4 Z`,
 wait, `GPIO 4 1`). The simulator models the same rule.
+
+## Beacon over its own USB port (the Beacon control panel)
+
+Optional, and independent of the enable wire above: the page can open the
+beacon board's own USB serial port (115200 8N1, a second Web Serial port).
+`firmware/beacon/code.py` polls its CircuitPython console between frames and
+answers each command line with exactly one line:
+
+| command | reply | effect |
+|---|---|---|
+| `ID` | `ID BEACON 1 ch=<n> pwr=<dBm> on=<0\|1>` | identify; the page checks this on connect |
+| `STATUS?` | `STATUS on= wire= ch= pwr= wpm= morse=` | current state |
+| `ON` / `OFF` | `OK ON` / `OK OFF` | serial enable; `OFF` also stops Morse |
+| `CH <1-13>` | `OK CH <n>` | retune; also the channel a long low on the wire returns to |
+| `PWR <2-20>` | `OK PWR <dBm>` | `wifi.radio.tx_power`; the reply is what the radio reports |
+| `WPM <3-20>` | `OK WPM <n>` | Morse speed (dot = 1.2 / WPM seconds) |
+| `MORSE <text>` | `OK MORSE <units> units` | key the carrier with `text`, repeating, 7-unit gap between repeats |
+| `MORSE` | `OK MORSE OFF` | stop keying |
+| other | `ERR <reason>` | |
+
+Transmit = wire high **or** `ALWAYS_ON` **or** `ON`; while Morse is keying, the
+code decides. Lines that don't start with `ID BEACON`, `STATUS `, `OK` or `ERR`
+(for example `beacon on channel 6`) are informational; the page logs them.
+Disconnecting from the panel sends `OFF` and `MORSE` first.

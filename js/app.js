@@ -16,6 +16,7 @@
  *   logging.js    Data logging panel (Record / Mark / Download)
  *   replay.js     Replay a log…
  *   beacon.js     Beacon button + Sweep (receiver GPIO4)
+ *   beacon-panel.js  Beacon control over the beacon's own USB port
  */
 
 import { EspSdr } from './radio.js';
@@ -33,6 +34,7 @@ import { Stats } from './ui/stats.js';
 import { initLogging } from './ui/logging.js';
 import { initReplay } from './ui/replay.js';
 import { initBeacon } from './ui/beacon.js';
+import { initBeaconPanel } from './ui/beacon-panel.js';
 
 const log = makeLog($('#log'));
 
@@ -92,6 +94,7 @@ function render({ bins, center, rate, iq }) {
 const beacon = initBeacon({ log, session });
 const logging = initLogging({ log, session, markWaterfall: l => waterfall.mark(l) });
 const { logger } = logging;
+const beaconPanel = initBeaconPanel({ log, session, mark: l => logging.mark(l) });
 const replay = initReplay({
   log, render, stats, setStatus,
   markWaterfall: l => waterfall.mark(l),
@@ -123,7 +126,8 @@ async function loop() {
       if (!session.running) break;              // Disconnect landed while the capture was in flight
       render({ bins: cap.spectrum, center: cap.frequency, rate: cap.rate, iq: cap.iq });
       stats.update(cap);
-      logger.push(cap, { beacon: beacon.isOn() });
+      const bc = beaconPanel.state();
+      logger.push(cap, { beacon: beacon.isOn() || !!bc?.on || !!bc?.morse, beaconCh: bc?.ch, beaconPwr: bc?.pwr });
     } catch (e) {
       log('⚠ ' + e.message);
       if (radio.failed) { await stop(); setStatus('Disconnected: ' + e.message, false); break; }
@@ -162,6 +166,7 @@ async function start(useSim) {
     applyLimits(info);
     setStatus(`${info.device} · ${info.rates.map(r => r / 1e6).join(' / ')} MS/s`, true);
     session.running = true; loop();
+    beaconPanel.radioChanged();
   } catch (e) {
     log('✖ ' + e.message); setStatus(e.message, false);
     session.radio = null;
@@ -173,6 +178,7 @@ async function stop() {
   await new Promise(r => setTimeout(r, 60));
   if (session.radio) { try { await session.radio.disconnect(); } catch {} }
   session.radio = null;
+  beaconPanel.radioChanged();
   spectrum.reset();
   occupancy.reset();
   beacon.reset();

@@ -97,6 +97,12 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   page shades the span between them and shows Δf, ΔdB, the total power between
   them (bins summed, divided by the Hann window's 1.5-bin noise bandwidth) the
   floor in dBFS per bin (20th-percentile bin), and the SNR over that band.
+- **Beacon control** opens the beacon board's own USB port (a second Web
+  Serial port) for transmit on/off, channel, power (2–20 dBm), a channel
+  sweep, **power steps** (20 → 2 dBm, 3 dB apart, 3 s each, with a mark at
+  each — the path-loss lab), and **Morse** keying at 5/8/12 WPM that you read
+  off the waterfall. In the simulator it drives a simulated beacon. The
+  commands are listed in `PROTOCOL.md` and at the top of `code.py`.
 - **Sweep** steps the beacon across channels 1→13 once a second, which draws
   a diagonal across the waterfall. It needs the beacon board and the single
   enable wire: the page pulses GPIO4 low for 30 ms per step and the beacon
@@ -117,7 +123,7 @@ included) and hands them over as one `.zip`:
 | file | contents |
 |---|---|
 | `marks.csv` | labelled events: time, capture index, label |
-| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, beacon on/off (column was `jammer` before v0.3), analog filter |
+| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, beacon on/off (column was `jammer` before v0.3), analog filter, beacon channel and power when it's connected over USB |
 | `spectrum.csv` | one row per capture, one column per FFT bin in dBFS; header row is the bin centre in MHz. A waterfall in a file — about 250 kB/s at 2048 bins |
 | `iq_NNNNN.npy` | raw I/Q of one capture as a NumPy `float32` array of shape `(n, 2)`, scaled to ±1. One per capture (or every 5th / 20th / 100th) |
 

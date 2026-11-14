@@ -91,7 +91,7 @@ export function initInstall(ui, { releaseSerial = async () => {} } = {}) {
       phase('rebooting the board and watching for its ready line…');
       const boot = await dev.reboot({ until: BOOT_LINE[role] });
       if (BOOT_LINE[role].test(boot)) {
-        phase('Done. This board is the beacon. Move it to a USB bank, clip its antenna on, and use the Beacon button on the instrument (with the enable wire) or set ALWAYS_ON in code.py.', 'ok');
+        phase('Done. This board is the beacon. Move it to a USB bank, clip its antenna on, and use the Beacon button on the instrument (with the enable wire), Beacon control (over its own USB), or set ALWAYS_ON in code.py.', 'ok');
       } else if (/Traceback|Error/.test(boot)) {
         phase('code.py written and verified, but it crashed on boot. The Python error is in the log above.', 'warn');
       } else {
