@@ -202,7 +202,7 @@ body.presenter button.small { font-size: 16px; }
 #spectrum { height: 180px; }
 #waterfall { height: 120px; margin-top: 6px; image-rendering: pixelated; }
 #iq { aspect-ratio: 1 / 1; height: auto; }
-#timedomain { height: 150px; }
+#timedomain, #occupancy { height: 150px; }
 .panelhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
 .panelhead .paneltools { display: inline-flex; gap: 6px; }
 .panelhead select { padding: 3px 8px; font-family: var(--mono); font-size: 12px; }

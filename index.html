@@ -70,6 +70,18 @@
     <canvas id="timedomain" title="The capture's samples in time order. Packets show up as the envelope stepping up and back down."></canvas>
     <div class="spechint" id="tdreadout"></div>
   </div>
+  <div class="panel">
+    <div class="panelhead">
+      <h2>Channel occupancy</h2>
+      <span class="paneltools">
+        <select id="occband" aria-label="Band"><option value="wifi" selected>Wi‑Fi</option><option value="ble">BLE</option><option value="z154">802.15.4</option></select>
+        <select id="occthr" aria-label="Busy threshold" title="A channel counts as busy in a capture when its average power is this far above the noise floor"><option value="6">+6 dB</option><option value="10" selected>+10 dB</option><option value="15">+15 dB</option></select>
+        <select id="occwin" aria-label="Window" title="How many recent captures the percentages cover"><option value="50">50</option><option value="200" selected>200</option><option value="1000">1000</option></select>
+      </span>
+    </div>
+    <canvas id="occupancy" title="Share of recent captures in which each channel was busy. Neighbouring Wi-Fi channels overlap, so 1, 6 and 11 are the fair comparison."></canvas>
+    <div class="spechint" id="occreadout"></div>
+  </div>
 </div>
 
 <div class="controls" data-presenter="hide">
@@ -112,6 +124,7 @@
   <div>
     <label for="hold">Trace</label>
     <select id="hold"><option value="live" selected>Live</option><option value="peak">+ peak hold (decays)</option><option value="max">+ max hold (frozen)</option></select>
+    <label class="inline" style="margin-top:6px" title="Colour each point by how often the spectrum has been there lately — rare bursts stay visible under the trace"><input type="checkbox" id="persist"> persistence</label>
     <button id="holdreset" class="small" style="margin-top:6px" disabled>Reset hold</button>
   </div>
   <div>
@@ -283,6 +296,9 @@
     something in it. Hold a phone streaming video near the antenna and watch it climb. Turn the jammer on, untick
     <em>Hardware AGC</em> and raise the manual gain until the readout reports <em>clipping</em>: the samples hit full
     scale, the scatter turns into a square and the spectrum sprouts junk that isn’t on the air.</p>
+  <p><strong>Who’s busy?</strong> <em>Channel occupancy</em> counts, for each channel, how often it was more than
+    10 dB above the floor in recent captures. Compare 1, 6 and 11 (neighbours overlap, so they always read alike), then
+    tick <em>persistence</em> under <em>Trace</em> to see rare bursts the averaged trace smooths away.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference;
     press <strong>P</strong> for the projector view.</p>

@@ -122,8 +122,10 @@ export class SimSdr {
       }
     };
 
-    // Wi-Fi channels 1/6/11 at 2412/2437/2462 as ~16 MHz humps, packets of 20–150 µs
-    for (const ch of [2412, 2437, 2462]) addSignal(ch - f0, 0.05, 16, gate(uniform(20, 150), expo(90), 0.4), true);
+    // Wi-Fi channels 1/6/11 at 2412/2437/2462 as ~16 MHz humps, packets of
+    // 20–150 µs. Different loads so the occupancy panel has a story: 6 is the
+    // busy one, 1 moderate, 11 mostly idle.
+    for (const [ch, gapUs, pOn] of [[2412, 400, 0.3], [2437, 70, 0.5], [2462, 2500, 0.05]]) addSignal(ch - f0, 0.05, 16, gate(uniform(20, 150), expo(gapUs), pOn), true);
     // BLE advertising on 37/38/39: now and then one packet of 80–376 µs
     for (const ble of [2402, 2426, 2480]) if (Math.random() < 0.5) addSignal(ble - f0, 0.03, 1, gate(uniform(80, 376), uniform(50, 400), 0.3), false);
 

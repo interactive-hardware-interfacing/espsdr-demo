@@ -2,18 +2,22 @@
 
 /*
  * spectrum.js — the power-spectrum plot: averaged live trace, optional
- * peak/max hold, a band overlay (Wi-Fi / BLE / 802.15.4, bands.js), up to two markers with live dB
+ * peak/max hold, an optional persistence (density) layer, a band overlay (Wi-Fi / BLE / 802.15.4, bands.js), up to two markers with live dB
  * readouts, a hover cursor, and click-to-tune / shift-click-for-marker.
  */
 
 import { cssVar, fit } from './dom.js';
 import { drawBands } from './bands.js';
+import { heat } from './waterfall.js';
+
+const HEAT = Array.from({ length: 256 }, (_, i) => heat(i / 255));
+const PERSIST_DECAY = 0.94;   // per frame: a hit fades to ~10 % in about 40 frames
 
 export class SpectrumView {
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {object} o
-   * @param {() => {floor:number, range:number, avgmode:string, hold:string, bands:string}} o.display  current display settings
+   * @param {() => {floor:number, range:number, avgmode:string, hold:string, bands:string, persist:boolean}} o.display  current display settings
    * @param {(mhz:number) => void} o.onTune     plain click
    * @param {(text:string) => void} o.onHover   hover readout text ('' when the mouse leaves)
    * @param {(msg:string) => void} o.log
@@ -42,7 +46,7 @@ export class SpectrumView {
   }
 
   /** Forget averaging and hold (new connection, new replay). */
-  reset() { this.avg = null; this.hold = null; }
+  reset() { this.avg = null; this.hold = null; this.dens = null; }
   resetHold() { this.hold = null; }
 
   // clicking within 1 MHz of an existing marker removes it
@@ -54,10 +58,42 @@ export class SpectrumView {
     else this.log('two markers already placed — shift-click one to remove it');
   }
 
+  // Persistence: a decaying 2-D histogram (column × dB row) of the raw,
+  // unaveraged bins at CSS-pixel resolution, drawn under everything else.
+  drawPersistence(bins, { W, H, floor, range, key }) {
+    const w = Math.max(1, Math.round(W)), h = Math.max(1, Math.round(H));
+    let d = this.dens;
+    if (!d || d.w !== w || d.h !== h || d.key !== key) {
+      const off = document.createElement('canvas'); off.width = w; off.height = h;
+      d = this.dens = { w, h, key, cell: new Float32Array(w * h), off, octx: off.getContext('2d'), img: null };
+      d.img = d.octx.createImageData(w, h);
+    }
+    const { cell, img } = d;
+    for (let k = 0; k < cell.length; k++) cell[k] *= PERSIST_DECAY;
+    const n = bins.length;
+    for (let x = 0; x < w; x++) {
+      const a = Math.floor(x / w * n), z = Math.max(a + 1, Math.floor((x + 1) / w * n));
+      for (let i = a; i < z; i++) {
+        const y = Math.floor((1 - (bins[i] - floor) / range) * h);
+        if (y >= 0 && y < h) cell[y * w + x] += 1 / (z - a);
+      }
+    }
+    let max = 1e-6; for (let k = 0; k < cell.length; k++) if (cell[k] > max) max = cell[k];
+    const lmax = Math.log1p(max), px = img.data;
+    for (let k = 0; k < cell.length; k++) {
+      const v = cell[k], o = k * 4;
+      if (v < 0.02) { px[o + 3] = 0; continue; }
+      const c = HEAT[Math.min(255, Math.round(Math.log1p(v) / lmax * 255))];
+      px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+    }
+    d.octx.putImageData(img, 0, 0);
+    this.ctx.drawImage(d.off, 0, 0, W, H);
+  }
+
   draw(bins, centerMHz, rateHz) {
     const { canvas, ctx } = this;
     const { W, H } = fit(canvas, ctx);
-    const { floor, range, avgmode, hold: hm, bands = 'wifi' } = this.display();
+    const { floor, range, avgmode, hold: hm, bands = 'wifi', persist = false } = this.display();
     ctx.clearRect(0, 0, W, H);
 
     // grid + channel markers
@@ -76,6 +112,8 @@ export class SpectrumView {
       if (x - tw / 2 > 2 && x + tw / 2 < W - 2) ctx.fillText(t, x - tw / 2, H - 7);
     }
     ctx.restore();
+    if (persist) this.drawPersistence(bins, { W, H, floor, range, key: `${centerMHz}|${rateHz}|${floor}|${range}` });
+    else this.dens = null;
     const labelsEnd = drawBands(ctx, { W, H, loMHz, hiMHz, choice: bands });
 
     // averaging

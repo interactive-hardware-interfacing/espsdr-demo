@@ -80,6 +80,12 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
   envelope stepping up and down. The readout gives *on air* (share of samples
   ~10 dB above a noise estimate from the quietest samples) and flags *clipping* (samples at full
   scale).
+- **Channel occupancy** shows, per channel of the chosen band, the share of
+  the last 50 / 200 / 1000 captures in which it was busy (average power over
+  its width at least +6 / +10 / +15 dB above the floor, the 20th-percentile
+  bin). Captures are snapshots, so it's a sample of the air, not a duty cycle.
+- **Trace → persistence** colours the plot by how often the spectrum has
+  been at each level lately, so rare bursts stay visible under the trace.
 - **Band overlay** draws Wi-Fi channels, Bluetooth LE (advertising 37/38/39
   shaded, data channels when zoomed in), IEEE 802.15.4 / Zigbee / Thread, all
   three, or nothing. Channel tables are in `js/ui/bands.js`.

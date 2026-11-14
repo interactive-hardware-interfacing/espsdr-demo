@@ -11,6 +11,7 @@
  *   iq.js         I/Q scatter
  *   timeview.js   one capture in time: envelope or I/Q, on-air %, clipping
  *   bands.js      Wi-Fi / BLE / 802.15.4 channel tables + spectrum overlay
+ *   occupancy.js  per-channel busy share over recent captures
  *   stats.js      numeric readouts
  *   logging.js    Data logging panel (Record / Mark / Download)
  *   replay.js     Replay a log…
@@ -27,6 +28,7 @@ import { SpectrumView } from './ui/spectrum.js';
 import { WaterfallView } from './ui/waterfall.js';
 import { IqView } from './ui/iq.js';
 import { TimeView } from './ui/timeview.js';
+import { OccupancyView } from './ui/occupancy.js';
 import { Stats } from './ui/stats.js';
 import { initLogging } from './ui/logging.js';
 import { initReplay } from './ui/replay.js';
@@ -51,7 +53,7 @@ function settings() {
 }
 const display = () => ({
   floor: Number($('#floor').value), range: Number($('#range').value),
-  avgmode: $('#avgmode').value, hold: $('#hold').value, bands: $('#bands').value,
+  avgmode: $('#avgmode').value, hold: $('#hold').value, bands: $('#bands').value, persist: $('#persist').checked,
 });
 
 // ---- views ----
@@ -71,6 +73,9 @@ const iqView = new IqView($('#iq'));
 const timeView = new TimeView($('#timedomain'),
   () => ({ mode: $('#tdmode').value, window: Number($('#tdwin').value) }),
   (text, warn) => { const el = $('#tdreadout'); el.textContent = text; el.classList.toggle('warn', warn); });
+const occupancy = new OccupancyView($('#occupancy'),
+  () => ({ band: $('#occband').value, threshold: Number($('#occthr').value), window: Number($('#occwin').value) }),
+  text => { $('#occreadout').textContent = text; });
 const stats = new Stats();
 
 /** Draw one frame (live capture or replayed row) into every view. */
@@ -78,6 +83,7 @@ function render({ bins, center, rate, iq }) {
   const d = display();
   spectrum.draw(bins, center, rate);
   waterfall.push(bins, d.floor, d.range);
+  occupancy.push(bins, center, rate);
   if (iq) { iqView.draw(iq); timeView.draw(iq, rate); }
 }
 
@@ -88,7 +94,7 @@ const { logger } = logging;
 const replay = initReplay({
   log, render, stats, setStatus,
   markWaterfall: l => waterfall.mark(l),
-  onStart: () => spectrum.reset(),
+  onStart: () => { spectrum.reset(); occupancy.reset(); },
 });
 initPresenter($('#presenter'));
 logging.refresh();
@@ -167,6 +173,7 @@ async function stop() {
   if (session.radio) { try { await session.radio.disconnect(); } catch {} }
   session.radio = null;
   spectrum.reset();
+  occupancy.reset();
   jammer.reset();
   setStatus('Not connected', false);
   log('Disconnected.');
