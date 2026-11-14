@@ -17,11 +17,12 @@ export class Stats {
       $('#fps').textContent = (this.frames / (now - this.lastStat) * 1000).toFixed(1);
       this.frames = 0; this.lastStat = now;
     }
-    this.show({ peakMHz: cap.peakHz / 1e6, peakDb: cap.peakDb, captureUs: cap.captureUs, retries: cap.retries });
+    this.show({ peakMHz: cap.peakHz / 1e6, peakDb: cap.peakDb, captureUs: cap.captureUs, retries: cap.retries, rbwKHz: cap.rate / cap.fft / 1e3 });
   }
 
   /** Set readouts directly (replay). Missing fields are left alone. */
-  show({ peakMHz, peakDb, captureUs, retries }) {
+  show({ peakMHz, peakDb, captureUs, retries, rbwKHz }) {
+    if (rbwKHz != null) $('#rbw').textContent = rbwKHz >= 100 ? rbwKHz.toFixed(0) : rbwKHz.toFixed(1);
     if (peakMHz != null) $('#peak').textContent = Number(peakMHz).toFixed(2);
     if (peakDb != null) $('#peakdb').textContent = Number(peakDb).toFixed(0);
     if (captureUs != null) $('#cap-us').textContent = captureUs;

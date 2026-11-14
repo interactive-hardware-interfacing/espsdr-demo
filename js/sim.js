@@ -21,7 +21,8 @@ const SIM_SWEEP = [1, 3, 5, 6, 7, 9, 11, 13];
 export class SimSdr {
   constructor() {
     this.family = 'C3'; this.deviceName = 'ESP32-C3 (simulated)';
-    this.rxRates = [80000000]; this.maxSamples = 16380;
+    this.rxRates = [80000000, 40000000, 16000000]; this.maxSamples = 16380;
+    this.bwLimits = [14, 62, 1, 0]; this.bwSetting = 'auto';   // what a C3 reports in LIMITS?
     this.gainMin = 0; this.gainMax = 60; this.gainStep = 1; this.sampleBits = [8, 10];
     this.hasGain = true; this.hasHwAgc = true; this.hasGpio = true;
     this.gpioPins = [{ pin: 4, state: 'Z' }];
@@ -32,11 +33,12 @@ export class SimSdr {
 
   async connect() {
     this.onLog('← C3SDR 6 burst 16380 (simulated)');
-    return { identity: 'C3SDR 6 burst 16380', family: 'C3', device: this.deviceName, rates: this.rxRates, gpio: this.gpioPins, simulated: true };
+    return { identity: 'C3SDR 6 burst 16380', family: 'C3', device: this.deviceName, rates: this.rxRates, bandwidth: this.bwLimits, gpio: this.gpioPins, simulated: true };
   }
   async disconnect() {}
   async tune(f) { this.frequency = f; }
   async setGain() { return { mode: 'HARDWARE', index: null }; }
+  async setBandwidth(mhz = 'auto') { this.bwSetting = mhz; return mhz; }
   async setGpio(pin, state) {
     const e = this.gpioPins.find(p => p.pin === pin); if (!e) return;
     // Model the jammer firmware's single-wire protocol: a short low pulse while
@@ -55,19 +57,35 @@ export class SimSdr {
 
   _jammerOn() { return (this.gpioPins.find(p => p.pin === 4) || {}).state === '1'; }
 
-  async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gain = 40, gainMode = 'HARDWARE' } = {}) {
+  async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gain = 40, gainMode = 'HARDWARE', bandwidth = null } = {}) {
     if (frequency != null) this.frequency = frequency;
+    if (bandwidth != null) this.bwSetting = bandwidth;
+    // The analog filter: 'auto'/0 behave as the widest setting (~62 MHz on a C3).
+    const bwMHz = typeof this.bwSetting === 'number' && this.bwSetting > 0 ? this.bwSetting : 62;
+    const filt = dfMHz => 1 / Math.sqrt(1 + (dfMHz / (bwMHz / 2)) ** 8);   // 4th-order Butterworth-ish
     const f0 = this.frequency, n = Math.max(nfft, 8192);
     const iq = new Float32Array(n * 2);
     const span = rate / 1e6; // MHz across the capture
     const binOffMHz = (df) => df; // df is already MHz offset from center
 
-    // Noise floor
-    for (let j = 0; j < n; j++) { iq[2 * j] = gaussian() * 0.012; iq[2 * j + 1] = gaussian() * 0.012; }
+    // Noise floor: front-end noise that goes through the analog filter
+    // (cascaded one-pole low-pass, so narrowing the filter visibly shapes the
+    // floor), plus a little white ADC noise that does not.
+    // Scaled so the in-band density stays put: total power ∝ passband / span.
+    const pole = Math.exp(-2 * Math.PI * (bwMHz / 2) / span);
+    let a1i = 0, a1q = 0, a2i = 0, a2q = 0, pw = 0;
+    for (let j = 0; j < n; j++) {
+      a1i = pole * a1i + (1 - pole) * gaussian(); a1q = pole * a1q + (1 - pole) * gaussian();
+      a2i = pole * a2i + (1 - pole) * a1i;        a2q = pole * a2q + (1 - pole) * a1q;
+      iq[2 * j] = a2i; iq[2 * j + 1] = a2q; pw += a2i * a2i + a2q * a2q;
+    }
+    const k = 0.012 * Math.SQRT2 * Math.sqrt(Math.min(1, bwMHz / span)) / Math.sqrt(pw / n || 1);
+    for (let j = 0; j < 2 * n; j++) iq[j] = iq[j] * k + gaussian() * 0.003;
 
     // Helper: add a tone cluster of given MHz offset, amplitude, and width.
     const addSignal = (dfMHz, amp, widthMHz, kind) => {
       if (Math.abs(dfMHz) > span / 2) return;
+      amp *= filt(dfMHz);
       const wBins = Math.max(1, Math.round(widthMHz / span * 20));
       for (let c = -wBins; c <= wBins; c++) {
         const cycles = (dfMHz + c * span / 40) / span; // fraction of sample rate
@@ -104,7 +122,7 @@ export class SimSdr {
     await new Promise(r => setTimeout(r, 25)); // feel like a real capture
     return {
       iq, spectrum: ps, fft: nfft, rate, bits, frequency: f0,
-      gain: { mode: 'HARDWARE', index: null },
+      gain: { mode: 'HARDWARE', index: null }, bandwidth: this.bwSetting,
       peakHz: f0 * 1e6 + (pk - nfft / 2) * rate / nfft, peakDb: ps[pk],
       captureUs: Math.round(n / rate * 1e6), samples: n, retries: 0,
       elapsedMs: 25, simulated: true,

@@ -20,9 +20,11 @@ against a board before a tour.
 | `SYNC <nonce>`     | `SYNC <nonce>`                      | Resync after connect              |
 | `INFO`             | e.g. `C3SDR 6 burst 16380`          | Identify chip + max capture length|
 | `CAPS`             | `CAPS <flags...>`                   | Feature flags (GAIN, GPIO, …)     |
-| `LIMITS?`          | `LIMITS {json}`                     | Gain range, rates, bit depths     |
+| `LIMITS?`          | `LIMITS {json}`                     | Gain range, rates, bit depths, filter range |
 | `GAIN?` / `GAIN …` | `GAIN …` / `OK`                     | AGC or manual gain index          |
 | `FREQ <MHz>`       | `OK`                                | Tune (whole MHz)                  |
+| `BANDWIDTH <MHz>`  | `OK`                                | Analog filter; 0 = widest (C3: 14–62) |
+| `LPF AUTO`         | `OK`                                | Back to the calibrated filter ("Auto") |
 | `GPIO <pin> <Z|0|1>`| `OK GPIO <pin> <state>`            | Jammer enable line                |
 | `CAP16 <n> <rate>` | `DATA <n> <crc32hex> <us>` + bytes  | Raw 8-bit I/Q capture             |
 | `CAP20 <n> <rate>` | `DATA <n> <crc32hex> <us>` + bytes  | Raw 10-bit I/Q capture            |
@@ -42,7 +44,13 @@ the capture framing below hasn't changed.**
 - CRC32 is the zlib polynomial (0xEDB88320); check it before using the data.
 - **IQ8** (`CAP16`): signed 8-bit I, signed 8-bit Q, interleaved.
 - **IQ10** (`CAP20`): packed signed 10-bit, 20 bits per I/Q pair, LSB first.
-- Rate codes (we use 0 = 80 MS/s on the C3): see the table in the upstream doc.
+- Rate codes: the C3 offers 0 = 80, 1 = 40 and 6 = 16 MS/s (`LIMITS?` lists them
+  as `"rates":[80000000,40000000,16000000]`). The page's **Span** menu is filled
+  from that list. Older builds without `LIMITS?` advertise `RX40` / `RX16` in `CAPS`.
+- `LIMITS?` on the C3 reports `"bandwidth":[14,62,1,0]`. The page's **Analog
+  filter** menu offers Auto (sends nothing, or `LPF AUTO` to undo a change) and
+  steps inside that range via `BANDWIDTH <MHz>`. The setting applies from the
+  next capture.
 
 ## Why raw captures and not `SPEC`?
 

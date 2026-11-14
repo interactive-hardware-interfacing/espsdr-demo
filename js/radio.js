@@ -8,7 +8,8 @@
  * This is an independent, demo-focused reimplementation of the parts of the
  * ESPARGOS esp-web-sdr client (GPL-3.0) that this page needs: connect + SYNC,
  * INFO/CAPS/GAIN/LIMITS negotiation, FREQ tuning, raw CAP16/CAP20 captures
- * with CRC32 check, IQ unpacking, and a JS FFT for the spectrum. We use raw
+ * with CRC32 check, IQ unpacking, BANDWIDTH (analog filter), and a JS FFT for
+ * the spectrum. We use raw
  * captures (not the SPEC stream) because one CAP16 gives us BOTH the spectrum
  * and the raw I/Q the constellation panel needs, and because snapshot captures
  * are the only spectrum path the C3 has over its native USB anyway.
@@ -91,6 +92,8 @@ export class EspSdr {
     this.pumping = null;
     this.family = null; this.maxSamples = 16380;
     this.rxRates = [80000000];
+    this.bwLimits = null;          // [min, max, step, default] MHz from LIMITS?, or null
+    this.bwSetting = null;         // last filter setting sent: 'auto', 0 (widest) or MHz; null = untouched
     this.gainMin = 0; this.gainMax = 60; this.gainStep = 1;
     this.sampleBits = [8, 10];
     this.frequency = null; this.gainSetting = null;
@@ -196,21 +199,27 @@ export class EspSdr {
     this.hasGain = caps.includes('GAIN');
     this.hasHwAgc = caps.includes('HWAGC');
     this.hasGpio = caps.includes('GPIO');
+    this.hasLpfAuto = caps.includes('LPFANA');   // C3: `LPF AUTO` restores the calibrated filter
 
     // Gain range: prefer LIMITS?, fall back to GAIN?
     if (caps.includes('RXLIMITS')) {
       await this._cmd('LIMITS?');
       const lim = JSON.parse((await this._line('LIMITS ')).slice(7));
       if (Array.isArray(lim.gain)) [this.gainMin, this.gainMax, this.gainStep] = lim.gain;
-      if (Array.isArray(lim.rates) && lim.rates.length) this.rxRates = lim.rates;
+      if (Array.isArray(lim.rates) && lim.rates.length) this.rxRates = lim.rates.filter(r => RATE_CODES.includes(r));
       if (Array.isArray(lim.bits) && lim.bits.length) this.sampleBits = lim.bits;
-    } else if (this.hasGain) {
-      await this._cmd('GAIN?');
-      const g = (await this._line('GAIN ')).split(' ');
-      this.gainMin = Number(g[3]); this.gainMax = Number(g[4]);
+      if (Array.isArray(lim.bandwidth) && lim.bandwidth.length >= 2) this.bwLimits = lim.bandwidth;
+    } else {
+      // Older builds without LIMITS?: the RX40 / RX16 flags say which slower rates exist.
+      this.rxRates = [80000000, ...(caps.includes('RX40') ? [40000000] : []), ...(caps.includes('RX16') ? [16000000] : [])];
+      if (this.hasGain) {
+        await this._cmd('GAIN?');
+        const g = (await this._line('GAIN ')).split(' ');
+        this.gainMin = Number(g[3]); this.gainMax = Number(g[4]);
+      }
     }
-    // The C3 only advertises 80 MS/s.
-    if (this.family === 'C3' && !this.rxRates.length) this.rxRates = [80000000];
+    // The C3 captures at 80, 40 or 16 MS/s (LIMITS? lists them); 80 covers the whole band.
+    if (!this.rxRates.length) this.rxRates = [80000000];
 
     if (this.hasGpio) {
       await this._cmd('GPIO?');
@@ -219,7 +228,7 @@ export class EspSdr {
       this.gpioPins = pins ? pins.split(' ').map(e => { const [p, s] = e.split(':'); return { pin: Number(p), state: s }; }) : [];
     }
     this.deviceName = this.family === 'ESP32' ? 'ESP32' : 'ESP32-' + this.family;
-    return { identity: info, family: this.family, device: this.deviceName, rates: this.rxRates, gpio: this.gpioPins };
+    return { identity: info, family: this.family, device: this.deviceName, rates: this.rxRates, bandwidth: this.bwLimits, gpio: this.gpioPins };
   }
 
   async disconnect() {
@@ -229,7 +238,7 @@ export class EspSdr {
       if (this.reader) { try { await this.reader.cancel(); } catch {} ; try { await this.pumping; } catch {} ; try { this.reader.releaseLock(); } catch {} ; this.reader = null; }
       if (this.writer) { try { this.writer.releaseLock(); } catch {} ; this.writer = null; }
       if (this.port) { try { await this.port.close(); } catch {} ; this.port = null; }
-      this.frequency = null; this.gainSetting = null;
+      this.frequency = null; this.gainSetting = null; this.bwSetting = null;
     }
   }
 
@@ -254,6 +263,30 @@ export class EspSdr {
     return { mode, index: mode === 'MANUAL' ? index : null };
   }
 
+  // Analog receive filter. 'auto' leaves the chip's calibrated filter alone
+  // (what the firmware does after boot); a number is approximate MHz, 0 =
+  // widest. Takes effect from the next capture.
+  async setBandwidth(mhz = 'auto') {
+    if (!this.bwLimits) return null;
+    if (mhz === 'auto') {
+      if (this.bwSetting != null && this.bwSetting !== 'auto') {
+        await this._cmd(this.hasLpfAuto ? 'LPF AUTO' : 'BANDWIDTH 0');
+        await this._line('OK');
+      }
+      this.bwSetting = 'auto';
+      return 'auto';
+    }
+    const [lo, hi] = this.bwLimits;
+    mhz = Math.round(mhz);
+    if (mhz && (mhz < lo || mhz > hi)) throw new Error(`Bandwidth must be 0 (open) or ${lo}–${hi} MHz.`);
+    if (mhz !== this.bwSetting) {
+      await this._cmd('BANDWIDTH ' + mhz);
+      await this._line('OK');
+      this.bwSetting = mhz;
+    }
+    return mhz;
+  }
+
   async setGpio(pin, state) {
     if (!this.hasGpio) throw new Error('This firmware has no spare GPIO.');
     await this._cmd(`GPIO ${pin} ${state}`);
@@ -265,13 +298,14 @@ export class EspSdr {
 
   // ---- one raw capture -> {iq, spectrum, peak} ----
   // bits: 8 or 10 ; fft: power of two <= samples ; rate in Hz
-  async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gainMode = 'HARDWARE', gain = 40 } = {}) {
+  async capture({ frequency, rate = 80000000, bits = 8, fft: nfft = 2048, gainMode = 'HARDWARE', gain = 40, bandwidth = null } = {}) {
     if (!this.port) throw new Error('Connect the board first.');
     const divider = RATE_CODES.indexOf(rate);
     if (divider < 0) throw new Error('Unsupported sample rate.');
     const start = performance.now();
     if (frequency != null) await this.tune(frequency);
     const g = await this.setGain(gainMode, gain);
+    const bw = bandwidth == null ? this.bwSetting : await this.setBandwidth(bandwidth);
 
     const n = Math.max(nfft, Math.min(this.maxSamples, 16380));
     let bytes, captureUs, retries = 0;
@@ -319,7 +353,7 @@ export class EspSdr {
     for (let j = 1; j < ps.length; j++) if (ps[j] > ps[peak]) peak = j;
     return {
       iq, spectrum: ps, fft: nfft, rate, bits,
-      frequency: this.frequency, gain: g,
+      frequency: this.frequency, gain: g, bandwidth: bw,
       peakHz: this.frequency * 1e6 + (peak - nfft / 2) * rate / nfft,
       peakDb: ps[peak],
       captureUs, samples: n, retries,

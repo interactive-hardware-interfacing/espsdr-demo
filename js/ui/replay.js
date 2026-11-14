@@ -57,6 +57,7 @@ export function initReplay({ log, render, markWaterfall, stats, setStatus, onSta
     const s = data.summary.get(fr.i);
     if (s) stats.show({ peakMHz: s.peak_mhz, peakDb: s.peak_dbfs, captureUs: s.capture_us, retries: s.retries });
     else { let p = 0; for (let k = 1; k < fr.db.length; k++) if (fr.db[k] > fr.db[p]) p = k; stats.show({ peakMHz: fr.bins[p], peakDb: fr.db[p] }); }
+    stats.show({ rbwKHz: rate / n / 1e3 });
     for (const m of data.marks.get(fr.i) || []) markWaterfall(m);
     stats.fps('replay');
     replay.i++;

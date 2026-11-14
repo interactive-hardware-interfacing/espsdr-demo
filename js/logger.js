@@ -7,7 +7,8 @@
  * Three products, each optional:
  *
  *   summary.csv   one row per capture: time, centre, rate, FFT size, bits, gain,
- *                 peak frequency and level, capture time, retries. Small. The
+ *                 peak frequency and level, capture time, retries, jammer,
+ *                 analog filter ('auto' or MHz). Small. The
  *                 thing to plot in a spreadsheet.
  *   spectrum.csv  one row per capture, one column per FFT bin (dBFS), with a
  *                 header row of bin frequencies in MHz. A waterfall in a file.
@@ -75,7 +76,7 @@ export class CaptureLogger {
         (cap.frequency).toFixed(3), cap.rate, cap.fft, cap.bits,
         cap.gain?.mode ?? '', cap.gain?.index ?? '',
         (cap.peakHz / 1e6).toFixed(4), cap.peakDb.toFixed(2),
-        cap.captureUs, cap.retries, extra.jammer ? 1 : 0,
+        cap.captureUs, cap.retries, extra.jammer ? 1 : 0, cap.bandwidth ?? '',
       ].join(',') + '\n';
       this.rows.push(row); this.bytes += row.length;
     }
@@ -129,7 +130,7 @@ python:
     files.push({ name: 'README.txt', bytes: enc.encode(readme) });
     files.push({ name: 'marks.csv', bytes: enc.encode('t_s,iso_time,capture,label\n' + this.marks.map(m => `${m.t.toFixed(3)},${m.iso},${m.capture},${/[",\n]/.test(m.label) ? '"' + m.label.replace(/"/g, '""') + '"' : m.label}\n`).join('')) });
     if (this.opts.summary) {
-      const hdr = 'capture,t_s,iso_time,center_mhz,rate_hz,fft,bits,gain_mode,gain_index,peak_mhz,peak_dbfs,capture_us,retries,jammer\n';
+      const hdr = 'capture,t_s,iso_time,center_mhz,rate_hz,fft,bits,gain_mode,gain_index,peak_mhz,peak_dbfs,capture_us,retries,jammer,filter_mhz\n';
       files.push({ name: 'summary.csv', bytes: enc.encode(hdr + this.rows.join('')) });
     }
     if (this.opts.spectrum) files.push({ name: 'spectrum.csv', bytes: enc.encode(this.specRows.join('')) });

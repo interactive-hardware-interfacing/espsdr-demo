@@ -71,6 +71,10 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 - **Trace → peak hold / max hold.** Peak hold (yellow) decays about 1 dB per
   frame; max hold (magenta) is frozen until *Reset hold*. Both draw over the
   live trace.
+- **Span** picks the sample rate (80, 40 or 16 MS/s on the C3): slower zooms
+  in, and the **kHz / bin** readout shows how much finer each FFT bin gets.
+  **Analog filter** sets ESP-SDR's `BANDWIDTH` (14–62 MHz on the C3); *Auto*
+  leaves the calibrated filter alone.
 - **Click the spectrum to tune** there (rounded to 1 MHz). Hover shows the
   frequency under the cursor. **Shift-click** places a marker (up to two) with
   a live dB readout; shift-click a marker to remove it.
@@ -94,7 +98,7 @@ included) and hands them over as one `.zip`:
 | file | contents |
 |---|---|
 | `marks.csv` | labelled events: time, capture index, label |
-| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, jammer on/off |
+| `summary.csv` | one row per capture: time, centre, rate, FFT size, bits, gain, peak frequency and level, capture time, retries, jammer on/off, analog filter |
 | `spectrum.csv` | one row per capture, one column per FFT bin in dBFS; header row is the bin centre in MHz. A waterfall in a file — about 250 kB/s at 2048 bins |
 | `iq_NNNNN.npy` | raw I/Q of one capture as a NumPy `float32` array of shape `(n, 2)`, scaled to ±1. One per capture (or every 5th / 20th / 100th) |
 

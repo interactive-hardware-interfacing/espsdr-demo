@@ -38,7 +38,8 @@ const session = { radio: null, running: false, simulated: false, connected: fals
 function settings() {
   return {
     frequency: Number($('#freq').value),
-    rate: 80000000,
+    rate: Number($('#rate').value),
+    bandwidth: $('#bw').value === 'auto' ? 'auto' : Number($('#bw').value),
     bits: Number($('#bits').value),
     fft: Number($('#fft').value),
     gainMode: $('#agc').checked ? 'HARDWARE' : 'MANUAL',
@@ -119,6 +120,23 @@ async function loop() {
   }
 }
 
+// Fill the Span and Analog filter menus from what the board reported.
+const BW_STEPS = [62, 50, 40, 30, 24, 20, 16, 14];
+function applyLimits(info) {
+  const rate = $('#rate'), keep = Number(rate.value);
+  const rates = [...info.rates].sort((a, b) => b - a);
+  rate.replaceChildren(...rates.map(r => new Option(`${r / 1e6} MHz · ${r / 1e6} MS/s`, r)));
+  rate.value = rates.includes(keep) ? keep : rates[0];
+  rate.disabled = rates.length < 2;
+  const bw = $('#bw'), keepBw = bw.value, lim = info.bandwidth;
+  const steps = lim ? BW_STEPS.filter(m => m >= lim[0] && m <= lim[1]) : [];
+  if (lim && !steps.includes(lim[1])) steps.unshift(lim[1]);
+  bw.replaceChildren(new Option('Auto (calibrated)', 'auto'), ...steps.map(m => new Option(`${m} MHz${m === lim[1] ? ' (widest)' : ''}`, m)));
+  bw.value = [...bw.options].some(o => o.value === keepBw) ? keepBw : 'auto';
+  bw.disabled = !lim;
+  if (!lim) bw.title = 'This firmware does not report a characterised filter (LIMITS? bandwidth is null).';
+}
+
 async function start(useSim) {
   replay.stop(true);
   session.simulated = useSim;
@@ -128,7 +146,8 @@ async function start(useSim) {
     log(useSim ? 'Starting simulator…' : 'Requesting serial port…');
     const info = await radio.connect();
     log(`Connected: ${info.device}${info.simulated ? '' : ' · ' + info.identity}`);
-    setStatus(`${info.device} · ${info.rates[0] / 1e6} MS/s`, true);
+    applyLimits(info);
+    setStatus(`${info.device} · ${info.rates.map(r => r / 1e6).join(' / ')} MS/s`, true);
     session.running = true; loop();
   } catch (e) {
     log('✖ ' + e.message); setStatus(e.message, false);
@@ -152,6 +171,8 @@ $('#connect').addEventListener('click', () => start(false));
 $('#sim').addEventListener('click', () => start(true));
 $('#disconnect').addEventListener('click', stop);
 
+$('#rate').addEventListener('change', () => { spectrum.reset(); log(`span → ${Number($('#rate').value) / 1e6} MHz`); });
+$('#bw').addEventListener('change', () => log(`analog filter → ${$('#bw').value === 'auto' ? 'auto' : $('#bw').value + ' MHz'}`));
 $('#gain').addEventListener('input', () => { $('#gainval').textContent = $('#gain').value; });
 $('#agc').addEventListener('change', () => { $('#gain').disabled = $('#agc').checked; });
 $('#hold').addEventListener('change', () => { spectrum.resetHold(); $('#holdreset').disabled = $('#hold').value === 'live'; });

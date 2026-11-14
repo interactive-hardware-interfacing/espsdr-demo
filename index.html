@@ -64,6 +64,14 @@
     <input type="number" id="freq" value="2442" min="2100" max="2800" step="1">
   </div>
   <div>
+    <label for="rate" title="The sample rate is the span: a slower rate zooms in and makes each FFT bin narrower">Span (sample rate)</label>
+    <select id="rate"><option value="80000000" selected>80 MHz · 80 MS/s</option><option value="40000000">40 MHz · 40 MS/s</option><option value="16000000">16 MHz · 16 MS/s</option></select>
+  </div>
+  <div>
+    <label for="bw" title="The radio's analog low-pass filter, before the ADC. Auto leaves the chip's calibrated setting alone.">Analog filter</label>
+    <select id="bw"><option value="auto" selected>Auto (calibrated)</option></select>
+  </div>
+  <div>
     <label for="fft">FFT bins</label>
     <select id="fft"><option>512</option><option>1024</option><option selected>2048</option><option>4096</option></select>
   </div>
@@ -97,6 +105,7 @@
 
 <div class="stats">
   <div><div class="n" id="fps">—</div><div class="k">frames / s</div></div>
+  <div><div class="n" id="rbw">—</div><div class="k">kHz / bin</div></div>
   <div><div class="n" id="peak">—</div><div class="k">peak MHz</div></div>
   <div><div class="n" id="peakdb">—</div><div class="k">peak dBFS</div></div>
   <div><div class="n" id="cap-us">—</div><div class="k">µs / capture</div></div>
@@ -245,6 +254,9 @@
   <p><strong>Try this during the tour:</strong> point the center frequency at 2437 (Wi-Fi channel 6) and
     watch the hump grow when someone opens a video. Then hit <strong>Jammer</strong> and watch a
     sharp spike appear and the waterfall light up where the jammer node is transmitting.</p>
+  <p><strong>Zoom in:</strong> set <em>Span</em> to 16 MHz and centre on 2437. Each FFT bin gets five times narrower (watch
+    <em>kHz / bin</em>), so a Wi-Fi hump shows its shape instead of a blur. Then narrow the <em>Analog filter</em> at 80 MHz span
+    and watch the band edges sink — that is the filter in front of the ADC.</p>
   <p><strong>Also try:</strong> tick <em>Sweep</em> and watch the jammer draw a diagonal down the waterfall; switch <em>Trace</em> to
     peak hold and wave a phone near the antenna; shift-click two markers either side of a Wi-Fi hump and read the difference;
     press <strong>P</strong> for the projector view.</p>
@@ -258,7 +270,8 @@
   </p>
   <p><strong>Known quirks:</strong></p>
   <ul>
-    <li>Captures come in bursts with gaps between them — the sample rate (80 MS/s) describes one burst, not sustained throughput. That’s normal for the C3.</li>
+    <li>Captures come in bursts with gaps between them — the sample rate (80, 40 or 16 MS/s) describes one burst, not sustained throughput. That’s normal for the C3.</li>
+    <li>The analog filter setting is approximate (ESP-SDR’s characterised curve for the C3, 14–62 MHz). At 16 MS/s anything wider than the span folds back in as aliasing; that’s the lesson, not a bug.</li>
     <li>Power is in uncalibrated dBFS, not dBm. Good for “louder / quieter,” not for absolute measurements.</li>
   </ul>
 
