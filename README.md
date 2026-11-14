@@ -53,7 +53,8 @@ pick it on the Firmware tab, click **Flash CircuitPython**. That path uses
 
 | Path | What it is |
 |---|---|
-| `index.html`, `css/`, `js/app.js` | The page: instrument, plus Hardware / Firmware / About views (`js/views.js`). |
+| `index.html`, `css/`, `js/app.js` | The page: instrument, plus Hardware / Firmware / About views (`js/views.js`). `app.js` is the capture loop and glue. |
+| `js/ui/` | One module per view or panel: `spectrum.js`, `waterfall.js`, `iq.js`, `stats.js`, `logging.js`, `replay.js`, `jammer.js`, plus shared helpers in `dom.js`. |
 | `js/radio.js` | Web Serial client for ESP-SDR and the FFT. Adapted from ESPARGOS's esp-web-sdr. |
 | `js/sim.js` | A fake radio for **Try without hardware**. |
 | `js/install.js`, `js/device/` | The Firmware tab: CircuitPython raw REPL over Web Serial (write, verify, reboot) for the jammer. |

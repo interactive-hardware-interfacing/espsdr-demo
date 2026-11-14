@@ -265,7 +265,7 @@
   <h3>The pieces</h3>
   <table>
     <tr><th>Part</th><th>What it is</th></tr>
-    <tr><td><code>index.html</code>, <code>css/</code>, <code>js/app.js</code></td><td>This page. No build step, no framework.</td></tr>
+    <tr><td><code>index.html</code>, <code>css/</code>, <code>js/app.js</code></td><td>This page. No build step, no framework. <code>app.js</code> is the glue; each view and panel is its own module in <code>js/ui/</code>.</td></tr>
     <tr><td><code>js/logger.js</code></td><td>The Data logging panel: CSV summary, per-bin spectrum, raw I/Q as <code>.npy</code>, zipped in the browser.</td></tr>
     <tr><td><code>js/radio.js</code></td><td>Web Serial client for ESP-SDR: INFO, SET, CAP16 bursts, the FFT. Adapted from ESPARGOS’s esp-web-sdr.</td></tr>
     <tr><td><code>js/sim.js</code></td><td>A fake radio: Wi-Fi humps, noise, and a jammer spike, for the simulator.</td></tr>
